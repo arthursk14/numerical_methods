@@ -3,9 +3,9 @@ using Random, Distributions, Plots, ARCHModels
 # 1. Tauchen
 
     # Parameters
-    n = 9                                                               # Number of grid points (given in the exercise)
+    n = 21                                                               # Number of grid points (given in the exercise)
     m = 3                                                               # Scaling parameter (number of deviations covered)
-    rho = 0.95                                                          # Persistence parameter (given in the exercise)
+    rho = 0.99                                                          # Persistence parameter (given in the exercise)
     sigma = 0.007                                                       # Standard deviation of epsilon (given in te exercise)
 
     # Standard deviation of z
@@ -149,12 +149,12 @@ using Random, Distributions, Plots, ARCHModels
     # Plotting the processes together
 
     # Tauchen
-    display(plot([zContinuous, zTauchen], label=["AR(1)" "Tauchen"]))
+    display("image/png", plot([zContinuous, zTauchen], label=["AR(1)" "Tauchen"]))
         xlabel!("Periods")
         ylabel!("Z")
 
     # Rouwenhorst
-    display(plot([zContinuous, zRouwen], label=["AR(1)" "Rouwenhorst"]))
+    display("image/png", plot([zContinuous, zRouwen], label=["AR(1)" "Rouwenhorst"]))
         xlabel!("Periods")
         ylabel!("Z")
 
