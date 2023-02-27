@@ -109,14 +109,14 @@ using Statistics
                     c = (1 - δ)*k + z*k^α - k_grid[h]
                     # Calculate the whole right hand side of the Bellman equation (without the max operator) 
                     RHS = u(c, μ) + β * dot(P[i,:], V0[:, h])
-                    # Here we exploit concavity, if the value declines, this level is a maximum
+                    # Here we exploit concavity, if the value declines, the previous level is a maximum
                     if RHS < RHS_old
                         # With entries (z,k), the value function returns the maximum RHS achievable
                         V[i,j] = RHS_old
                         # Updating the monotonicity control
-                        mono_control = h
+                        mono_control = h-1
                         # The policy function is the kprime (or consumption, one-to-one) chosen to maximize the RHS
-                        K[i,j] = k_grid[h]
+                        K[i,j] = k_grid[h-1]
                         break
                     else
                         # If we exhaust the grid search
@@ -128,7 +128,7 @@ using Statistics
                             # The policy function is the kprime (or consumption, one-to-one) chosen to maximize the RHS
                             K[i,j] = k_grid[h]
                         else
-                            # This was not the maximum, so save for next iteration
+                            # If not, this was not the maximum, so save for next iteration
                             RHS_old = RHS
                         end
                     end
@@ -144,13 +144,13 @@ using Statistics
 
     function convergence(V0)
         dist = Inf
-        tol = 1e-4
+        tol = 1e-5
         iter = 0
         max_iter = 1e3
 
         while (dist > tol) && (iter < max_iter) 
             V, K = Iter_V(V0)
-            dist = norm(V-V0)
+            dist = norm(V-V0, Inf)
             V0 = V
             iter = iter + 1
         end
@@ -159,3 +159,20 @@ using Statistics
     end
 
     V, K, iter, dist = convergence(zeros(m,N))
+
+    display("image/png", plot([V[1,:], 
+                               V[2,:],
+                               V[3,:],
+                               V[4,:],
+                               V[5,:],
+                               V[6,:],
+                               V[7,:],], xlabel="Capital", ylabel="Value Function"))
+
+    display("image/png", plot([K[1,:], 
+                               K[2,:],
+                               K[3,:],
+                               K[4,:],
+                               K[5,:],
+                               K[6,:],
+                               K[7,:],], xlabel="Capital", ylabel="Policy Function"))
+                               
