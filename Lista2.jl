@@ -96,7 +96,7 @@ using Statistics
         for (i, z) in enumerate(z_grid)
 
             # Monotonicity control
-            mono_control = 1
+            #mono_control = 1
 
             # Choose the current k
             for (j, k) in enumerate(k_grid)
@@ -104,7 +104,7 @@ using Statistics
                 RHS_old = -Inf
 
                 # For the given (z, k), we look for the optimal kprime, using monotonicity to start the loop
-                for h in mono_control:N
+                for h in 1:N
                     # Calculate the consumption for that level of kprime      
                     c = (1 - δ)*k + z*k^α - k_grid[h]
                     # Calculate the whole right hand side of the Bellman equation (without the max operator) 
@@ -114,7 +114,7 @@ using Statistics
                         # With entries (z,k), the value function returns the maximum RHS achievable
                         V[i,j] = RHS_old
                         # Updating the monotonicity control
-                        mono_control = h-1
+                        #mono_control = h-1
                         # The policy function is the kprime (or consumption, one-to-one) chosen to maximize the RHS
                         K[i,j] = k_grid[h-1]
                         break
@@ -124,8 +124,8 @@ using Statistics
                             # Then and the maximum is the current level for the RHS
                             V[i,j] = RHS                            
                             # Updating the monotonicity control
-                            mono_control = h
-                            # The policy function is the kprime (or consumption, one-to-one) chosen to maximize the RHS
+                            #mono_control = h
+                            # The policy function is the kprime (or, alternatively the consumption in t) chosen to maximize the RHS
                             K[i,j] = k_grid[h]
                         else
                             # If not, this was not the maximum, so save for next iteration
