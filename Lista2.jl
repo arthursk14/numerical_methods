@@ -1,4 +1,8 @@
-using Random, Distributions, LinearAlgebra, Statistics, Plots
+using Distributions
+using LinearAlgebra
+using Plots
+using Random
+using Statistics
 
 # Calibration
     α = 0.33
@@ -74,40 +78,71 @@ using Random, Distributions, LinearAlgebra, Statistics, Plots
         end
     end
 
-# Initialize value and policy function
-    V0 = zeros(m, N)
-    V = zeros(m, N)
+# Value function iteration
+
+    function Iter_V(V0)
+
+        # Object to save the next value function
+        V = zeros(m,N)
+
+        # Object to save the policy function
+        K = zeros(m,N)
+
+        # Choose the current z
+        for (i, z) in enumerate(z_grid)
+
+            # Monotonicity control
+            mono_control = 0
+
+            # Choose the current z
+            for (j, k) in enumerate(k_grid)
+
+                RHS_old = -Inf
+
+                # For the given (z, k), we look for the optimal kprime, using monotonicity to start the loop
+                for h in mono_control:N
+                    # Calculate the consumption for that level of kprime      
+                    c = (1 - δ)*k + z*k^α - k_grid[h]
+                    # Calculate the whole right hand side of the Bellman equation (without the max operator) 
+                    RHS = u(c, μ) + β * dot(P[j,:], V0[:, h])
+                    # Here we exploit concavity, if the value declines, this level is a maximum
+                    if RHS < RHS_old
+                        # With entries (z,k), the value function returns the maximum RHS achievable
+                        V[i,j] = RHS_old
+                        # Updating the monotonicity control
+                        mono_control = h
+                        # The policy function is the kprime (or consumption, one-to-one) chosen to maximize the RHS
+                        K[i,j] = k_grid[h]
+                        break
+                    else
+                        # If we exhaust the grid search
+                        if h == N
+                            # Then and the maximum is the current level for the RHS
+                            V[i,j] = RHS                            
+                            # Updating the monotonicity control
+                            mono_control = h
+                            # The policy function is the kprime (or consumption, one-to-one) chosen to maximize the RHS
+                            K[i,j] = k_grid[h]
+                        else
+                            # This was not the maximum, so save for next iteration
+                            RHS_old = RHS
+                        end
+                    end
+                end
+            end
+        end
+
+        return V, K
+
+    end
+
+
 
 # Set control parameters for the algorithm 
     tol = 1e-5
     max_iter = 500
     dist = Inf
     iter = 0
-
-# Value function iteration
-    while (dist > tol) && (iter < max_iter)
-        for (i, k) in enumerate(k_grid)
-            for (j, z) in enumerate(z_grid)
-                # For the given (k, z), we look for the optimal kprime
-                for (h, kprime) in enumerate(k_grid)                    
-                    c = (1 - δ)*k + z*k^α - kprime
-                    RHS = u(c, μ) + β * dot(P[j,:], V0[:, h])   
-
-
-                end
-
-                # Update policy function
-                c = (1 - δ)*k + z*k^α - k_grid[argmin(abs.(V0[:, j] - β*V0[i, :]'))]
-                c1[i, j] = max(c1[i, j], 1e-10)  # impose non-negativity constraint
-                # Update value function
-                V1[i, j] = maximum(u.(c1[i, j], z_grid) .+ β*P[j, :]'*V0)
-            end
-        end
-        dist = maximum(abs.(V1 - V0))
-        V0, V1 = V1, V0  # swap value functions for next iteration
-        c0, c1 = c1, c0  # swap policy functions for next iteration
-        iter += 1
-    end
 
 # Plot value function and policy function
     z_idx = 1  # plot for the first TFP shock
