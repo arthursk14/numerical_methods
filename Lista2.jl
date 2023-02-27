@@ -5,6 +5,7 @@ using Random
 using Statistics
 
 # Calibration
+
     α = 0.33
     β = 0.987
     δ = 0.012
@@ -13,11 +14,13 @@ using Statistics
     μ = 2
     
 # Grid points
+
     m = 7                                                               # Number of grid points for the TFP process
     N = 500                                                             # Number of grid points for the capital stock
     s = 3                                                               # Scaling parameter for the Tauchen discretization
 
 # Capital stock
+
     k_ss = ((1/β - 1 + δ)/α)^(1/(α - 1))
     k_min = 0.75*k_ss
     k_max = 1.25*k_ss
@@ -65,6 +68,7 @@ using Statistics
     z_grid = exp.(Z)
 
 # Utility function
+
     function u(c,mu)
         c = float(c)
         if c <= 0
@@ -92,9 +96,9 @@ using Statistics
         for (i, z) in enumerate(z_grid)
 
             # Monotonicity control
-            mono_control = 0
+            mono_control = 1
 
-            # Choose the current z
+            # Choose the current k
             for (j, k) in enumerate(k_grid)
 
                 RHS_old = -Inf
@@ -104,7 +108,7 @@ using Statistics
                     # Calculate the consumption for that level of kprime      
                     c = (1 - δ)*k + z*k^α - k_grid[h]
                     # Calculate the whole right hand side of the Bellman equation (without the max operator) 
-                    RHS = u(c, μ) + β * dot(P[j,:], V0[:, h])
+                    RHS = u(c, μ) + β * dot(P[i,:], V0[:, h])
                     # Here we exploit concavity, if the value declines, this level is a maximum
                     if RHS < RHS_old
                         # With entries (z,k), the value function returns the maximum RHS achievable
@@ -136,15 +140,20 @@ using Statistics
 
     end
 
+# Iterations
 
+    function convergence(V0)
+        dist = Inf
+        tol = 10e-5
+        iter = 0
+        max_iter = 100
 
-# Set control parameters for the algorithm 
-    tol = 1e-5
-    max_iter = 500
-    dist = Inf
-    iter = 0
+        while (dist > tol) && (iter < max_iter) 
+            V, K = Iter_V(V0)
+            dist = max(abs(V-V0))
+            V0 = V
+            iter = iter + 1
+        end
 
-# Plot value function and policy function
-    z_idx = 1  # plot for the first TFP shock
-    plot(k_grid, V0[:, z_idx], xlabel="Capital", ylabel="Value", label="Value Function")
-    plot!(k_grid, c0[:, z_idx], xlabel="Capital", ylabel="Consumption", label="Policy Function")
+        return V, K
+    end
