@@ -144,16 +144,18 @@ using Statistics
 
     function convergence(V0)
         dist = Inf
-        tol = 10e-5
+        tol = 1e-4
         iter = 0
-        max_iter = 100
+        max_iter = 1e3
 
         while (dist > tol) && (iter < max_iter) 
             V, K = Iter_V(V0)
-            dist = max(abs(V-V0))
+            dist = norm(V-V0)
             V0 = V
             iter = iter + 1
         end
 
-        return V, K
+        return V, K, iter, dist
     end
+
+    V, K, iter, dist = convergence(zeros(m,N))
