@@ -1,4 +1,4 @@
-using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
+using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations
 
 # Calibration
 
@@ -163,11 +163,93 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
 
     @time V_final, K_final, iter, dist = convergence(zeros(m,N))
 
+# Plots
+
     display( "image/png", plot( k_grid, [ V_final[1,:] V_final[2,:] V_final[3,:] V_final[4,:] V_final[5,:] V_final[6,:] V_final[7,:] ], 
                                 title="Value Function", 
-                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ] ) )
+                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
+                                xlabel = "Capital", ylabel = "Value" ) )
+
 
     display( "image/png", plot( k_grid, [ K_final[1,:] K_final[2,:] K_final[3,:] K_final[4,:] K_final[5,:] K_final[6,:] K_final[7,:] ], 
                                 title="Policy Function", 
-                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ] ) )
-                               
+                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
+                                xlabel = "Capital", ylabel = "Value" ) )
+    
+
+# Value function iteration without maximizing (for use in the accelerator)
+
+    function Iter_V_a(V0, K0)
+
+        # Object to save the next value function
+        V = zeros(m,N)
+        
+        # Choose the current z
+        for (i, z) in enumerate(z_grid)
+
+            # Choose the current k
+            for (j, k) in enumerate(k_grid)
+
+                # Calculate the consumption for that level of kprime      
+                c = (1 - δ)*k + z*k^α - K0[i,j]
+
+                # Calculate the whole right hand side of the Bellman equation (without the max operator) 
+                V[i,j] = u(c, μ) + β * dot(P[i,:], V0[:, j])
+
+            end
+
+        end
+
+        return V
+
+    end
+
+# Iterations, with accelerator
+
+    function convergence_a(V0)
+
+        dist = Inf
+        tol = 1e-5
+        iter = 0
+        max_iter = 1e3
+
+        Vi = zeros(m,N)
+        Ki = zeros(m,N)
+
+        while (dist > tol) && (iter < max_iter) 
+            if rem(iter,10) == 0 || iter < 200                          # Run the function with optimization only once every 10 iterations, or in the first 200
+                Vi, Ki = Iter_V(V0)
+                dist = norm(Vi-V0, Inf)
+                V0 = Vi
+                iter = iter + 1
+            else
+                Vi = Iter_V_a(V0,Ki)
+                dist = norm(Vi-V0, Inf)
+                V0 = Vi
+                iter = iter + 1
+            end
+        end
+
+        return Vi, Ki, iter, dist
+    end
+
+    V_final_a = zeros(m,N)
+    K_final_a = zeros(m,N)
+
+    @time V_final_a, K_final_a, iter, dist = convergence_a(zeros(m,N))
+
+# Plots
+
+    display( "image/png", plot( k_grid, [ V_final_a[1,:] V_final_a[2,:] V_final_a[3,:] V_final_a[4,:] V_final_a[5,:] V_final_a[6,:] V_final_a[7,:] ], 
+                          title="Value Function", 
+                          label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
+                          xlabel = "Capital", ylabel = "Value" ) )
+
+
+    display( "image/png", plot( k_grid, [ K_final_a[1,:] K_final_a[2,:] K_final_a[3,:] K_final_a[4,:] K_final_a[5,:] K_final_a[6,:] K_final_a[7,:] ], 
+                          title="Policy Function", 
+                          label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
+                          xlabel = "Capital", ylabel = "Value" ) )
+
+# Multigrid 
+
