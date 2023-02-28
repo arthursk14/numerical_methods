@@ -164,19 +164,11 @@ using Statistics
 
     V, K, iter, dist = convergence(zeros(m,N))
 
-    display("image/png", plot([V[1,:], 
-                               V[2,:],
-                               V[3,:],
-                               V[4,:],
-                               V[5,:],
-                               V[6,:],
-                               V[7,:],], xlabel="Capital", ylabel="Value Function"))
+    display( "image/png", plot( k_grid, [ V[1,:] V[2,:] V[3,:] V[4,:] V[5,:] V[6,:] V[7,:] ], 
+                                title="Value Function", 
+                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ] ) )
 
-    display("image/png", plot([K[1,:], 
-                               K[2,:],
-                               K[3,:],
-                               K[4,:],
-                               K[5,:],
-                               K[6,:],
-                               K[7,:],], xlabel="Capital", ylabel="Policy Function"))
+    display( "image/png", plot( k_grid, [ K[1,:] K[2,:] K[3,:] K[4,:] K[5,:] K[6,:] K[7,:] ], 
+                                title="Policy Function", 
+                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ] ) )
                                
