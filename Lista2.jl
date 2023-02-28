@@ -1,8 +1,4 @@
-using Distributions
-using LinearAlgebra
-using Plots
-using Random
-using Statistics
+using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
 
 # Calibration
 
@@ -162,7 +158,7 @@ using Statistics
         return V, K, iter, dist
     end
 
-    V, K, iter, dist = convergence(zeros(m,N))
+    @btime V, K, iter, dist = convergence(zeros(m,N))
 
     display( "image/png", plot( k_grid, [ V[1,:] V[2,:] V[3,:] V[4,:] V[5,:] V[6,:] V[7,:] ], 
                                 title="Value Function", 
