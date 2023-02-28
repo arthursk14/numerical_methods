@@ -138,10 +138,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
 
 # Iterations
 
-    function convergence(V0)
+    V = zeros(m,N)
+    K = zeros(m,N)
 
-        V = zeros(m,N)
-        K = zeros(m,N)
+    function convergence(V0)
 
         dist = Inf
         tol = 1e-5
