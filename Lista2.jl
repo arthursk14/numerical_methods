@@ -145,17 +145,23 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
         iter = 0
         max_iter = 1e3
 
+        Vi = zeros(m,N)
+        Ki = zeros(m,N)
+
         while (dist > tol) && (iter < max_iter) 
             Vi, Ki = Iter_V(V0)
-            dist = norm(V-V0, Inf)
-            V0 = V
+            dist = norm(Vi-V0, Inf)
+            V0 = Vi
             iter = iter + 1
         end
 
         return Vi, Ki, iter, dist
     end
 
-    @btime V_final, K_final, iter, dist = convergence(zeros(m,N))
+    V_final = zeros(m,N)
+    K_final = zeros(m,N)
+
+    @time V_final, K_final, iter, dist = convergence(zeros(m,N))
 
     display( "image/png", plot( k_grid, [ V_final[1,:] V_final[2,:] V_final[3,:] V_final[4,:] V_final[5,:] V_final[6,:] V_final[7,:] ], 
                                 title="Value Function", 
