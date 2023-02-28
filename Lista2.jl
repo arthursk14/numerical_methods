@@ -138,9 +138,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
 
 # Iterations
 
-    V = zeros(m,N)
-    K = zeros(m,N)
-
     function convergence(V0)
 
         dist = Inf
@@ -149,22 +146,22 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools
         max_iter = 1e3
 
         while (dist > tol) && (iter < max_iter) 
-            V, K = Iter_V(V0)
+            Vi, Ki = Iter_V(V0)
             dist = norm(V-V0, Inf)
             V0 = V
             iter = iter + 1
         end
 
-        return V, K, iter, dist
+        return Vi, Ki, iter, dist
     end
 
-    @btime V, K, iter, dist = convergence(zeros(m,N))
+    @btime V_final, K_final, iter, dist = convergence(zeros(m,N))
 
-    display( "image/png", plot( k_grid, [ V[1,:] V[2,:] V[3,:] V[4,:] V[5,:] V[6,:] V[7,:] ], 
+    display( "image/png", plot( k_grid, [ V_final[1,:] V_final[2,:] V_final[3,:] V_final[4,:] V_final[5,:] V_final[6,:] V_final[7,:] ], 
                                 title="Value Function", 
                                 label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ] ) )
 
-    display( "image/png", plot( k_grid, [ K[1,:] K[2,:] K[3,:] K[4,:] K[5,:] K[6,:] K[7,:] ], 
+    display( "image/png", plot( k_grid, [ K_final[1,:] K_final[2,:] K_final[3,:] K_final[4,:] K_final[5,:] K_final[6,:] K_final[7,:] ], 
                                 title="Policy Function", 
                                 label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ] ) )
                                
