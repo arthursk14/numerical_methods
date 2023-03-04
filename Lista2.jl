@@ -165,17 +165,19 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Plots
 
-    display( "image/png", plot( k_grid, [ V_final[1,:] V_final[2,:] V_final[3,:] V_final[4,:] V_final[5,:] V_final[6,:] V_final[7,:] ], 
-                                title="Value Function", 
-                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
-                                xlabel = "Capital", ylabel = "Value" ) )
+    display("image/png", plot(k_grid, 
+                         permutedims(V_final), 
+                         title="Value Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Value"))
 
-
-    display( "image/png", plot( k_grid, [ K_final[1,:] K_final[2,:] K_final[3,:] K_final[4,:] K_final[5,:] K_final[6,:] K_final[7,:] ], 
-                                title="Policy Function", 
-                                label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
-                                xlabel = "Capital", ylabel = "Value" ) )
-    
+    display("image/png", plot(k_grid, 
+                         permutedims(K_final), 
+                         title="Value Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Value"))    
 
 # Value function iteration without maximizing (for use in the accelerator)
 
@@ -240,16 +242,19 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Plots
 
-    display( "image/png", plot( k_grid, [ V_final_a[1,:] V_final_a[2,:] V_final_a[3,:] V_final_a[4,:] V_final_a[5,:] V_final_a[6,:] V_final_a[7,:] ], 
-                          title="Value Function", 
-                          label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
-                          xlabel = "Capital", ylabel = "Value" ) )
+display("image/png", plot(k_grid, 
+                     permutedims(V_final_a), 
+                     title="Value Function", 
+                     label=permutedims(["z = $(i)" for i in 1:m]), 
+                     xlabel="Capital", 
+                     ylabel="Value"))
 
-
-    display( "image/png", plot( k_grid, [ K_final_a[1,:] K_final_a[2,:] K_final_a[3,:] K_final_a[4,:] K_final_a[5,:] K_final_a[6,:] K_final_a[7,:] ], 
-                          title="Policy Function", 
-                          label=[ "z = 1" "z = 2" "z = 3" "z = 4" "z = 5" "z = 6" "z = 7" ], 
-                          xlabel = "Capital", ylabel = "Value" ) )
+display("image/png", plot(k_grid, 
+                     permutedims(K_final_a), 
+                     title="Value Function", 
+                     label=permutedims(["z = $(i)" for i in 1:m]), 
+                     xlabel="Capital", 
+                     ylabel="Value"))    
 
 # Multigrid 
 
