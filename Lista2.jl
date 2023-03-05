@@ -198,8 +198,26 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          
 # Euler equation errors
 
-    function EEE()
+    function EEE(C, kgrid, zgrid)
 
+        function u_c(c)
+            return c^(-μ)
+        end
+
+        function u_c_inv(c)
+            return c^(-1/μ)
+        end
+
+        EEE = zeros(m,N)
+
+        for (i, z) in enumerate(zgrid)
+            for (j, k) in enumerate(kgrid)
+                # m-vector with all possible values for u_c(c_{t+1})
+                one = u_c(zgrid*(k^α) + (1-δ)*k - K_final[i,j])
+            end
+        end        
+
+    end
 # Value function iteration without maximizing (for use in the accelerator)
 
     function Iter_V_a(V0, K0)
@@ -261,6 +279,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     @time V_final_a, K_final_a, iter, dist = convergence_a(zeros(m,N))
 
+# Get consumption policy function
+
+    C_final_a = zeros(m,N)
+
+    for (i, z) in enumerate(z_grid)
+        for (j, k) in enumerate(k_grid)
+            C_final[i,j] = (1 - δ)*k + z*k^α - K_final_a[j]
+        end
+    end     
+
 # Plots
 
 display("image/png", plot(k_grid, 
@@ -275,7 +303,14 @@ display("image/png", plot(k_grid,
                      title="Policy Function", 
                      label=permutedims(["z = $(i)" for i in 1:m]), 
                      xlabel="Capital", 
-                     ylabel="Policy (capital)"))    
+                     ylabel="Policy (capital)"))   
+
+display("image/png", plot(k_grid, 
+                    permutedims(C_final_a), 
+                    title="Policy Function", 
+                    label=permutedims(["z = $(i)" for i in 1:m]), 
+                    xlabel="Capital", 
+                    ylabel="Policy (consumption)"))                     
 
 # Multigrid 
 
