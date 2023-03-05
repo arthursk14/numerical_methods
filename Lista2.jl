@@ -379,11 +379,11 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
             # For each row i, interpolate the j values, using the N_1 values of the previous grid to create a N_2 grid
             for i = 1:m
-                linear = linear_interpolation(range(1,N_1), V_1[i,:])
+                litp = linear_interpolation(range(1,N_1), V_1[i,:])
                 h = 0
                 for j = 1:N_2
                     # For the frist N_2/N_1 observations of V_2[i,:] I use V_1[i,1]
-                    V_2[i,j] = linear(max(h+rem(j,(N_2/N_1))/(N_2/N_1),1))
+                    V_2[i,j] = litp(max(h+rem(j,(N_2/N_1))/(N_2/N_1),1))
                     if rem(j,(N_2/N_1)) == 0
                         h = h + 1
                     end
@@ -417,11 +417,11 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
             # For each row i, interpolate the j values, using the N_1 values of the previous grid to create a N_2 grid
             for i = 1:m
-                linear = linear_interpolation(range(1,N_2), V_2[i,:])
+                litp = linear_interpolation(range(1,N_2), V_2[i,:])
                 h = 0
                 for j = 1:N_3
                     # For the frist N_3/N_2 observations of V_3[i,:] I use V_2[i,1]
-                    V_3[i,j] = linear(max(h+rem(j,(N_3/N_2))/(N_3/N_2),1))
+                    V_3[i,j] = litp(max(h+rem(j,(N_3/N_2))/(N_3/N_2),1))
                     if rem(j,(N_3/N_2)) == 0
                         h = h + 1
                     end
