@@ -275,7 +275,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         dist = Inf
         tol = 1e-5
         iter = 0
-        max_iter = 1e3
+        max_iter = 1e4
 
         Vi = zeros(m,N)
         Ki = zeros(m,N)
@@ -308,7 +308,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     for (i, z) in enumerate(z_grid)
         for (j, k) in enumerate(k_grid)
-            C_final[i,j] = (1 - δ)*k + z*k^α - K_final_a[i,j]
+            C_final_a[i,j] = (1 - δ)*k + z*k^α - K_final_a[i,j]
         end
     end     
 
