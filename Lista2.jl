@@ -343,19 +343,20 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          xlabel="Capital", 
                          ylabel="EEE"))  
 
-# Multigrid 
+# Multigrid (hard-coded for 3 grids)
 
     # First grid
 
-        # Define
-            N = 100
-            k_grid = range(k_min, k_max, length=N)
+        # Define grid
+            N_1 = 100
+            N = N_1
+            k_grid = range(k_min, k_max, length=N_1)
 
         # Value Function Iteration
            @time V_1, K_1, iter, dist = convergence(zeros(m,N))
 
         # Get consumption policy function
-            C_1 = zeros(m,N)
+            C_1 = zeros(m,N_1)
 
             for (i, z) in enumerate(z_grid)
                 for (j, k) in enumerate(k_grid)
@@ -367,7 +368,107 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             EEE_1 = EEE(C_1,K_1,k_grid,z_grid)
 
     # Second grid
-        
-        
-            
 
+        # Define grid
+            N_2 = 500
+            N = N_2
+            k_grid = range(k_min, k_max, length=N_2)  
+        
+        # Increase dimension of the previous value function by interpolating                   
+            V_2 = zeros(m,N_2)
+
+            # For each row i, interpolate the j values, using the N_1 values of the previous grid to create a N_2 grid
+            for i = 1:m
+                linear = linear_interpolation(range(1,N_1), V_1[i,:])
+                h = 0
+                for j = 1:N_2
+                    # For the frist N_2/N_1 observations of V_2[i,:] I use V_1[i,1]
+                    V_2[i,j] = linear(max(h+rem(j,(N_2/N_1))/(N_2/N_1),1))
+                    if rem(j,(N_2/N_1)) == 0
+                        h = h + 1
+                    end
+                end
+            end
+
+        # Value Function Iteration
+            @time V_2, K_2, iter, dist = convergence(V_2)
+
+        # Get consumption policy function
+            C_2 = zeros(m,N_2)
+
+            for (i, z) in enumerate(z_grid)
+                for (j, k) in enumerate(k_grid)
+                    C_2[i,j] = (1 - δ)*k + z*k^α - K_2[i,j]
+                end
+            end     
+
+        # Compute EEE
+            EEE_2 = EEE(C_2,K_2,k_grid,z_grid)
+
+    # Third grid
+
+        # Define grid
+            N_3 = 5000
+            N = N_3 
+            k_grid = range(k_min, k_max, length=N_3)  
+        
+        # Increase dimension of the previous value function by interpolating                   
+            V_3 = zeros(m,N_3)
+
+            # For each row i, interpolate the j values, using the N_1 values of the previous grid to create a N_2 grid
+            for i = 1:m
+                linear = linear_interpolation(range(1,N_2), V_2[i,:])
+                h = 0
+                for j = 1:N_3
+                    # For the frist N_3/N_2 observations of V_3[i,:] I use V_2[i,1]
+                    V_3[i,j] = linear(max(h+rem(j,(N_3/N_2))/(N_3/N_2),1))
+                    if rem(j,(N_3/N_2)) == 0
+                        h = h + 1
+                    end
+                end
+            end
+
+        # Value Function Iteration
+            @time V_3, K_3, iter, dist = convergence(V_3)
+
+        # Get consumption policy function
+            C_3 = zeros(m,N_3)
+
+            for (i, z) in enumerate(z_grid)
+                for (j, k) in enumerate(k_grid)
+                    C_3[i,j] = (1 - δ)*k + z*k^α - K_3[i,j]
+                end
+            end     
+
+        # Compute EEE
+            EEE_3 = EEE(C_3,K_3,k_grid,z_grid)
+
+    # Plots
+
+    display("image/png", plot(k_grid, 
+                         permutedims(V_3), 
+                         title="Value Function (Multigrid)", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Value"))
+
+    display("image/png", plot(k_grid, 
+                         permutedims(K_3), 
+                         title="Policy Function (Multigrid)", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (capital)"))   
+
+    display("image/png", plot(k_grid, 
+                         permutedims(C_3), 
+                         title="Policy Function (Multigrid)", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))    
+
+    display("image/png", plot(k_grid, 
+                         permutedims(EEE_3), 
+                         title="Euler Equation Errors (Multigrid)", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="EEE"))  
