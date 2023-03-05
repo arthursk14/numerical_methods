@@ -314,30 +314,37 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Compute EEE
 
-    EEE_final = EEE(C_final_a,K_final_a,k_grid,z_grid)
+    EEE_final_a = EEE(C_final_a,K_final_a,k_grid,z_grid)
 
 # Plots
 
-display("image/png", plot(k_grid, 
-                     permutedims(V_final_a), 
-                     title="Value Function", 
-                     label=permutedims(["z = $(i)" for i in 1:m]), 
-                     xlabel="Capital", 
-                     ylabel="Value"))
+    display("image/png", plot(k_grid, 
+                         permutedims(V_final_a), 
+                         title="Value Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Value"))
 
-display("image/png", plot(k_grid, 
-                     permutedims(K_final_a), 
-                     title="Policy Function", 
-                     label=permutedims(["z = $(i)" for i in 1:m]), 
-                     xlabel="Capital", 
-                     ylabel="Policy (capital)"))   
+    display("image/png", plot(k_grid, 
+                         permutedims(K_final_a), 
+                         title="Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (capital)"))   
 
-display("image/png", plot(k_grid, 
-                    permutedims(C_final_a), 
-                    title="Policy Function", 
-                    label=permutedims(["z = $(i)" for i in 1:m]), 
-                    xlabel="Capital", 
-                    ylabel="Policy (consumption)"))                     
+    display("image/png", plot(k_grid, 
+                         permutedims(C_final_a), 
+                         title="Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))    
+                        
+    display("image/png", plot(k_grid, 
+                         permutedims(EEE_final_a), 
+                         title="Euler Equation Errors", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="EEE"))  
 
 # Multigrid 
 
