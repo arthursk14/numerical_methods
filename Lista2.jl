@@ -11,9 +11,9 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     
 # Grid points
 
-    m = 7                                                               # Number of grid points for the TFP process
-    N = 500                                                             # Number of grid points for the capital stock
-    s = 3                                                               # Scaling parameter for the Tauchen discretization
+    m = 7                                        # Number of grid points for the TFP process
+    N = 500                                      # Number of grid points for the capital stock
+    s = 3                                        # Scaling parameter for the Tauchen discretization
 
 # Capital stock
 
@@ -28,15 +28,15 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     stdZ = σ/sqrt((1-ρ^2))
 
     # Lower and upper bounds of the grid
-    lb = -s*stdZ                                                        # Lower bound
-    ub = s*stdZ                                                         # Upper bound
+    lb = -s*stdZ                                 # Lower bound
+    ub = s*stdZ                                  # Upper bound
 
     # Defining the n-1 possible states
     Z = LinRange(lb,ub,m)
 
     # Transition matrix
-    z = (ub-lb)/(m-1)                                                   # Width between gridpoints 
-    P = zeros((m, m))                                                   # The matrix
+    z = (ub-lb)/(m-1)                            # Width between gridpoints 
+    P = zeros((m, m))                            # The matrix
 
     # Loop for inserting values in P[i,j]
     for i in 1:m
@@ -169,9 +169,46 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     for (i, z) in enumerate(z_grid)
         for (j, k) in enumerate(k_grid)
-            C_final[i,j] = (1 - δ)*k + z*k^α - K_final[j]
+            C_final[i,j] = (1 - δ)*k + z*k^α - K_final[i,j]
         end
-    end        
+    end     
+    
+# Euler equation errors function
+
+    function EEE(C, K, kgrid, zgrid)
+
+        function u_c(c)
+            return c.^(-μ)
+        end
+
+        function u_c_inv(c)
+            return c.^(-1/μ)
+        end
+
+        EEE = zeros(m,N)
+
+        for (i,z) in enumerate(zgrid)
+            for (j,k) in enumerate(kgrid)
+                # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
+                one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- K[:,findfirst(k -> k == K[i,j], kgrid)])
+                # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
+                two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
+                # Element-wise multiplication
+                three = one.*two                
+                # Compute the expectation on z_{t+1}, given z_t and
+                four = dot(P[i,:],three)
+                # Euler Equation Error
+                EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
+            end
+        end  
+        
+        return EEE
+
+    end
+
+# Compute EEE
+
+    EEE_final = EEE(C_final,K_final,k_grid,z_grid)
 
 # Plots
 
@@ -194,30 +231,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          title="Policy Function", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
-                         ylabel="Policy (consumption)"))   
+                         ylabel="Policy (consumption)"))  
                          
-# Euler equation errors
+    display("image/png", plot(k_grid, 
+                         permutedims(EEE_final), 
+                         title="Euler Equation Errors", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="EEE"))  
 
-    function EEE(C, kgrid, zgrid)
 
-        function u_c(c)
-            return c^(-μ)
-        end
-
-        function u_c_inv(c)
-            return c^(-1/μ)
-        end
-
-        EEE = zeros(m,N)
-
-        for (i, z) in enumerate(zgrid)
-            for (j, k) in enumerate(kgrid)
-                # m-vector with all possible values for u_c(c_{t+1})
-                one = u_c(zgrid*(k^α) + (1-δ)*k - K_final[i,j])
-            end
-        end        
-
-    end
 # Value function iteration without maximizing (for use in the accelerator)
 
     function Iter_V_a(V0, K0)
@@ -258,7 +281,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         Ki = zeros(m,N)
 
         while (dist > tol) && (iter < max_iter) 
-            if rem(iter,10) == 0 || iter < 200                          # Run the function with optimization only once every 10 iterations, or in the first 200
+            if rem(iter,10) == 0 || iter < 200 # Run the function with optimization only once every 10 iterations, or in the first 200
                 Vi, Ki = Iter_V(V0)
                 dist = norm(Vi-V0, Inf)
                 V0 = Vi
@@ -285,9 +308,13 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     for (i, z) in enumerate(z_grid)
         for (j, k) in enumerate(k_grid)
-            C_final[i,j] = (1 - δ)*k + z*k^α - K_final_a[j]
+            C_final[i,j] = (1 - δ)*k + z*k^α - K_final_a[i,j]
         end
     end     
+
+# Compute EEE
+
+    EEE_final = EEE(C_final_a,K_final_a,k_grid,z_grid)
 
 # Plots
 
