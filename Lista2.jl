@@ -67,14 +67,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     function u(c,mu)
         c = float(c)
-        if c <= 0
+        if c < 0
             u = -Inf
         else
-            if μ == 1
-                u = log(c)                
-            else
-                u = (c^(1-μ)-1)/(1-μ)
-            end
+            u = (c^(1-mu)-1)/(1-mu)
         end
     end
 
@@ -102,7 +98,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 # For the given (z, k), we look for the optimal kprime, using monotonicity to start the loop
                 for h in mono_control:N
                     # Calculate the consumption for that level of kprime      
-                    c = (1 - δ)*k + z*k^α - k_grid[h]
+                    c = (1 - δ)*k + z*(k^α) - k_grid[h]
                     # Calculate the whole right hand side of the Bellman equation (without the max operator) 
                     RHS = u(c, μ) + β * dot(P[i,:], V0[:, h])
                     # Here we exploit concavity, if the value declines, the previous level is a maximum
@@ -255,10 +251,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             for (j, k) in enumerate(k_grid)
 
                 # Calculate the consumption for that level of kprime      
-                c = (1 - δ)*k + z*k^α - K0[i,j]
+                c = (1 - δ)*k + z*(k^α) - K0[i,j]
 
                 # Calculate the whole right hand side of the Bellman equation (without the max operator) 
-                V[i,j] = u(c, μ) + β * dot(P[i,:], V0[:, j])
+                V[i,j] = u(c, μ) + β * dot(P[i,:], V0[:, findfirst(k -> k == K0[i,j], k_grid)])
 
             end
 
@@ -275,13 +271,14 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         dist = Inf
         tol = 1e-5
         iter = 0
-        max_iter = 1e4
+        max_iter = 1e3
 
         Vi = zeros(m,N)
         Ki = zeros(m,N)
 
         while (dist > tol) && (iter < max_iter) 
-            if rem(iter,10) == 0 || iter < 200 # Run the function with optimization only once every 10 iterations, or in the first 200
+            # Run the function with optimization only once every 10 iterations, or in the first 100
+            if rem(iter,10) == 0 || iter < 50 
                 Vi, Ki = Iter_V(V0)
                 dist = norm(Vi-V0, Inf)
                 V0 = Vi
@@ -320,31 +317,57 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     display("image/png", plot(k_grid, 
                          permutedims(V_final_a), 
-                         title="Value Function", 
+                         title="Value Function (Accelerator)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Value"))
 
     display("image/png", plot(k_grid, 
                          permutedims(K_final_a), 
-                         title="Policy Function", 
+                         title="Policy Function (Accelerator)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (capital)"))   
 
     display("image/png", plot(k_grid, 
                          permutedims(C_final_a), 
-                         title="Policy Function", 
+                         title="Policy Function (Accelerator)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (consumption)"))    
                         
     display("image/png", plot(k_grid, 
                          permutedims(EEE_final_a), 
-                         title="Euler Equation Errors", 
+                         title="Euler Equation Errors (Accelerator)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="EEE"))  
 
 # Multigrid 
+
+    # First grid
+
+        # Define
+            N = 100
+            k_grid = range(k_min, k_max, length=N)
+
+        # Value Function Iteration
+           @time V_1, K_1, iter, dist = convergence(zeros(m,N))
+
+        # Get consumption policy function
+            C_1 = zeros(m,N)
+
+            for (i, z) in enumerate(z_grid)
+                for (j, k) in enumerate(k_grid)
+                    C_1[i,j] = (1 - δ)*k + z*k^α - K_1[i,j]
+                end
+            end     
+
+        # Compute EEE
+            EEE_1 = EEE(C_1,K_1,k_grid,z_grid)
+
+    # Second grid
+        
+        
+            
 
