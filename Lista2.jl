@@ -484,14 +484,14 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     # Define again the (exogenous) grid 
         k_grid = range(k_min, k_max, length=N)
-        kp_grid = zeros(N,1)
 
     # Create the matrices for the consumption policy function
         C0 = zeros(m,N)
         Ci = zeros(m,N)
     
-    # Create the matrices for the endogenous grids
+    # Create the matrix for the endogenous grid
         k_grid_e = zeros(N,1)
+    # Create the matrix for the policy function of the endogenous grid 
         kp_grid_e = zeros(N,1)
 
     # Initial guess for the consumption policy function (C0)
@@ -525,16 +525,15 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
                 # Save the k that maximizes 
                 k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
-                # Save the kprime for which k maximizes
-                kp_grid_e[j] = k_grid[j]
                 
             end
             
             # Interpolate (extrapolate if needed) to find the police function of the endogenous grid
-            kp_grid = LinearInterpolation(vec(k_grid_e), collect(k_grid), extrapolation_bc=Line())
+            kp_grid_e = LinearInterpolation(vec(k_grid_e), collect(k_grid), extrapolation_bc=Line())
             
+            # Compute the update of the consumption policy function
             for (j,k) in enumerate(k_grid)  
-                Ci[i,j] = z*(k_grid[j]^α) + (1-δ)*k_grid[j] - kp_grid[j]
+                Ci[i,j] = z*(k_grid[j]^α) + (1-δ)*k_grid[j] - kp_grid_e[j]
             end
             
         end
