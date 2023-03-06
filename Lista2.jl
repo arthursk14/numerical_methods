@@ -482,6 +482,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         iter = 0
         max_iter = 1e3
 
+        N = 50
+
     # Define again the (exogenous) grid 
         k_grid = range(k_min, k_max, length=N)
 
@@ -534,8 +536,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
                 # Save the k that maximizes 
                 k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
-                v = k_grid_e[j]
-                print("$j: $k, $RHS, $v, $one, $two \n")
                 
             end
             
@@ -544,7 +544,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             
             # Compute the update of the consumption policy function
             for (j,k) in enumerate(k_grid)  
-                Ci[i,j] = z*(k^α) + (1-δ)*k - kp_grid_e[j]
+                Ci[i,j] = z*(k^α) + (1-δ)*k - kp_grid_e[k]
             end
             
         end
