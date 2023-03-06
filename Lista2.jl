@@ -495,11 +495,20 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         kp_grid_e = zeros(N,1)
 
     # Initial guess for the consumption policy function (C0)
-        for i = 1:m
-            for j = 1:N
-                C0[i,j] = z_grid[i]*(k_grid[j]^α) + (1-δ)*k_grid[j] - k_grid[j];
+        for (i,z) in enumerate(z_grid)
+            for (j,k) in enumerate(k_grid) 
+                C0[i,j] = z*(k^α) + (1-δ)*k - k;
             end
         end
+
+    # Plot the initial guess
+
+    display("image/png", plot(k_grid, 
+                         permutedims(C0), 
+                         title="Consumption policy function initial guess", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))  
 
     # Iterations
         
@@ -512,7 +521,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             for (j,k) in enumerate(k_grid)  
                 
                 # All possible values (changing z_{t+1}) for the expression within the expectation
-                one = u_c(C0[:,j]).*(z_grid.*α.*(k_grid[j]^(α-1)).+(1-δ))                
+                one = u_c(C0[:,j]).*(z_grid.*α.*(k^(α-1)).+(1-δ))                
                 # Take the expectation
                 two = dot(P[i,:],one)                
                 # RHS of the Euler equation
@@ -525,6 +534,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
                 # Save the k that maximizes 
                 k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
+                v = k_grid_e[j]
+                print("$j: $k, $RHS, $v, $one, $two \n")
                 
             end
             
@@ -533,7 +544,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             
             # Compute the update of the consumption policy function
             for (j,k) in enumerate(k_grid)  
-                Ci[i,j] = z*(k_grid[j]^α) + (1-δ)*k_grid[j] - kp_grid_e[j]
+                Ci[i,j] = z*(k^α) + (1-δ)*k - kp_grid_e[j]
             end
             
         end
