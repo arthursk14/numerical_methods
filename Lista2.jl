@@ -553,4 +553,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         iter = iter + 1
         C0 = Ci;
 
+        print("$iter: $dist")
+
     end
