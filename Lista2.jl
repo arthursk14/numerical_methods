@@ -492,8 +492,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     
     # Create the matrix for the endogenous grid
         k_grid_e = zeros(N,1)
-    # Create the matrix for the policy function of the endogenous grid 
-        kp_grid_e = zeros(N,1)
+    # Create the matrix for the policy function 
+        kp_grid = zeros(N,1)
 
     # Initial guess for the consumption policy function (C0)
         for (i,z) in enumerate(z_grid)
@@ -522,9 +522,9 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             for (j,k) in enumerate(k_grid)  
                 
                 # All possible values (changing z_{t+1}) for the expression within the expectation
-                one = u_c(C0[:,j]).*(z_grid.*α.*(k^(α-1)).+(1-δ))                
+                one = u_c(C0[:,j]).*(z_grid.*α.*(k^(α-1)).+(1-δ))
                 # Take the expectation
-                two = dot(P[i,:],one)                
+                two = dot(P[i,:],one)
                 # RHS of the Euler equation
                 RHS = u_c_inv(β * two)
 
@@ -534,16 +534,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 end
 
                 # Save the k that maximizes 
-                k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
+                k_grid_e[j] = find_zero(f, (0, 1e2), Bisection())
                 
             end
             
             # Interpolate (extrapolate if needed) to find the police function of the endogenous grid
-            kp_grid_e = LinearInterpolation(vec(k_grid_e), collect(k_grid), extrapolation_bc=Line())
+            kp_grid = LinearInterpolation(vec(k_grid_e), collect(k_grid), extrapolation_bc=Line())
             
             # Compute the update of the consumption policy function
-            for (j,k) in enumerate(k_grid)  
-                Ci[i,j] = z*(k^α) + (1-δ)*k - kp_grid_e[k]
+            for (j,k) in enumerate(k_grid)
+                Ci[i,j] = z*(k^α) + (1-δ)*k - kp_grid[k]
             end
             
         end
