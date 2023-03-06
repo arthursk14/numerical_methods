@@ -501,30 +501,37 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             end
         end
 
-    # Loop
+    # Iterations
         
     while (dist > tol) && (iter < max_iter)
 
+        # Loop through all possible states
         for (i,z) in enumerate(z_grid)
 
+            # Loop through all possible kprimes
             for (j,k) in enumerate(k_grid)  
                 
-                one = u_c(C0[:,j]).*(z_grid.*α.*(k_grid[j]^(α-1)).+(1-δ))
-                two = dot(P[i,:],one)
-                
+                # All possible values (changing z_{t+1}) for the expression within the expectation
+                one = u_c(C0[:,j]).*(z_grid.*α.*(k_grid[j]^(α-1)).+(1-δ))                
+                # Take the expectation
+                two = dot(P[i,:],one)                
                 # RHS of the Euler equation
-                RHS = k_grid[j] + u_c_inv(two)
+                RHS = u_c_inv(β * two)
 
+                # What is the k that maximizes this kprime?
                 function f(x)
-                    z*(x^α) + (1-δ)*x - RHS
+                    (z*(x^α) + (1-δ)*x - k) - RHS
                 end
 
-                k_grid_e[j] = find_zero(f, Bisection(), Tolerance(1e-5, 1e-5))
+                # Save the k that maximizes 
+                k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
+                # Save the kprime for which k maximizes
                 kp_grid_e[j] = k_grid[j]
                 
             end
             
-            kp_grid = LinearInterpolation(k_grid_e, k_grid, extrapolation_bc=Line())
+            # Interpolate (extrapolate if needed) to find the police function of the endogenous grid
+            kp_grid = LinearInterpolation(vec(k_grid_e), collect(k_grid), extrapolation_bc=Line())
             
             for (j,k) in enumerate(k_grid)  
                 Ci[i,j] = z*(k_grid[j]^α) + (1-δ)*k_grid[j] - kp_grid[j]
