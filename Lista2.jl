@@ -482,7 +482,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         iter = 0
         max_iter = 1e3
 
-        N = 50
+        N = 500
 
     # Define again the (exogenous) grid 
         k_grid = range(k_min, k_max, length=N)
