@@ -1,4 +1,4 @@
-using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations
+using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots
 
 # Calibration
 
@@ -171,15 +171,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     
 # Euler equation errors function
 
-    function EEE(C, K, kgrid, zgrid)
-
+    # Derivative of the utility function
         function u_c(c)
             return c.^(-μ)
         end
-
+    # Inverse of the derivative of the utility function
         function u_c_inv(c)
             return c.^(-1/μ)
         end
+
+    function EEE(C, K, kgrid, zgrid)
 
         EEE = zeros(m,N)
 
@@ -472,3 +473,67 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="EEE"))  
+
+# Endogenous Grid Method (EGM)
+
+    # Iterations control parameters
+        dist = Inf
+        tol = 1e-5
+        iter = 0
+        max_iter = 1e3
+
+    # Define again the (exogenous) grid 
+        k_grid = range(k_min, k_max, length=N)
+        kp_grid = zeros(N,1)
+
+    # Create the matrices for the consumption policy function
+        C0 = zeros(m,N)
+        Ci = zeros(m,N)
+    
+    # Create the matrices for the endogenous grids
+        k_grid_e = zeros(N,1)
+        kp_grid_e = zeros(N,1)
+
+    # Initial guess for the consumption policy function (C0)
+        for i = 1:m
+            for j = 1:N
+                C0[i,j] = z_grid[i]*(k_grid[j]^α) + (1-δ)*k_grid[j] - k_grid[j];
+            end
+        end
+
+    # Loop
+        
+    while (dist > tol) && (iter < max_iter)
+
+        for (i,z) in enumerate(z_grid)
+
+            for (j,k) in enumerate(k_grid)  
+                
+                one = u_c(C0[:,j]).*(z_grid.*α.*(k_grid[j]^(α-1)).+(1-δ))
+                two = dot(P[i,:],one)
+                
+                # RHS of the Euler equation
+                RHS = k_grid[j] + u_c_inv(two)
+
+                function f(x)
+                    z*(x^α) + (1-δ)*x - RHS
+                end
+
+                k_grid_e[j] = find_zero(f, Bisection(), Tolerance(1e-5, 1e-5))
+                kp_grid_e[j] = k_grid[j]
+                
+            end
+            
+            kp_grid = LinearInterpolation(k_grid_e, k_grid, extrapolation_bc=Line())
+            
+            for (j,k) in enumerate(k_grid)  
+                Ci[i,j] = z*(k_grid[j]^α) + (1-δ)*k_grid[j] - kp_grid[j]
+            end
+            
+        end
+        
+        dist = norm(Ci-C0, Inf)
+        iter = iter + 1
+        C0 = Ci;
+
+    end
