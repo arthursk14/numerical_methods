@@ -534,7 +534,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 end
 
                 # Save the k that maximizes 
-                k_grid_e[j] = find_zero(f, (0, 1e2), Bisection())
+                k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
                 
             end
             
