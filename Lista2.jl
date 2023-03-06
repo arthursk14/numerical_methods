@@ -482,9 +482,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         iter = 0
         max_iter = 1e3
 
-        N = 500
-
     # Define again the (exogenous) grid 
+        N = 500
         k_grid = range(k_min, k_max, length=N)
 
     # Create the matrices for the consumption policy function
@@ -557,3 +556,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         print("$iter: $t, $dist")
 
     end
+
+    display("image/png", plot(k_grid, 
+                         permutedims(C0), 
+                         title="Final consumption policy function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))  
