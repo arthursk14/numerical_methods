@@ -553,7 +553,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         C0 = Ci;
         
         t = now()
-        print("$iter: $t, $dist")
+        print("$iter: $t, $dist \n")
 
     end
 
