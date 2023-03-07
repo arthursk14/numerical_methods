@@ -476,6 +476,29 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Endogenous Grid Method (EGM)
 
+    # Bisection method function (faster than Roots.find_zero(, , Bisection()))        
+        function bisection(f, a_, b_, atol = 1e-5; increasing = sign(f(b_)))
+            a_, b_ = minmax(a_, b_)
+            c = middle(a_,b_)
+            z = f(c) * increasing
+            if z > 0 #
+                b = c
+                a = typeof(b)(a_)
+            else
+                a = c
+                b = typeof(a)(b_)
+            end
+            while abs(a - b) > atol
+                c = middle(a,b)
+                if f(c) * increasing > 0 #
+                    b = c
+                else
+                    a = c
+                end
+            end
+            a
+        end
+
     # Iterations control parameters
         dist = Inf
         tol = 1e-5
@@ -524,9 +547,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 # All possible values (changing z_{t+1}) for the expression within the expectation
                 one = u_c(C0[:,j]).*(z_grid.*α.*(k^(α-1)).+(1-δ))
                 # Take the expectation
-                two = dot(P[i,:],one)
+                two = β*dot(P[i,:],one)                
+
+                # two = 0
+                # for w = 1:m
+                #     one = u_c(C0[w,j])*(z_grid[w]*α*(k^(α-1)) + (1-δ));
+                #     two = two + β*P[i,w]*one;
+                # end
+
                 # RHS of the Euler equation
-                RHS = u_c_inv(β * two)
+                RHS = u_c_inv(two)
 
                 # What is the k that maximizes this kprime?
                 function f(x)
@@ -534,7 +564,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 end
 
                 # Save the k that maximizes 
-                k_grid_e[j] = find_zero(f, (0, 1e3), Bisection())
+                k_grid_e[j] = bisection(f, 0, 1e3)
                 
             end
             
@@ -562,4 +592,4 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          title="Final consumption policy function", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
-                         ylabel="Policy (consumption)"))  
+                         ylabel="Policy (consumption)"))
