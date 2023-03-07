@@ -593,3 +593,63 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (consumption)"))
+
+# Iterations
+
+    # Create the matrices for the available resource in the economy 
+        # Exogenous grids, for each z
+            r0 = zeros(m,N)
+        # Endogenous grids, for each z
+            ri = zeros(m,N)
+
+    # Fill the matrix of the exogenous grids
+    for (i,z) in enumerate(z_grid)
+        for (j,k) in enumerate(k_grid) 
+            r0[i,j] = z*(k^α) + (1-δ)*k;
+        end
+    end
+            
+    while (dist > tol) && (iter < max_iter)
+
+        # Matrix to save the RHS of the Euler Equation
+        RHS = zeros(m,N)
+
+        # Loop through all possible states
+        for (i,z) in enumerate(z_grid)
+
+            # Loop through all possible kprimes
+            for (j,k) in enumerate(k_grid)  
+                
+                # All possible values (changing z_{t+1}) for the expression within the expectation
+                one = u_c(C0[:,j]).*(z_grid.*α.*(k^(α-1)).+(1-δ))
+                # Take the expectation
+                two = β*dot(P[i,:],one)                
+                # RHS of the Euler equation
+                RHS[i,j] = u_c_inv(two)
+                # Value for the endogenous grid
+                ri[i,j] = RHS[i,j] + k
+                
+            end           
+            
+        end
+        
+        # Interpolate (extrapolate if needed) to find the new consumption police function
+        for (i,z) in enumerate(z_grid)
+            Ci[i,:] = LinearInterpolation(ri[i,:], RHS[i,:], extrapolation_bc=Line())[r0[i,:]]
+        end    
+                
+        dist = norm(Ci-C0, Inf)
+        iter = iter + 1
+        C0 = Ci;
+        
+        t = now()
+        print("$iter: $t, $dist \n")
+
+    end
+
+    display("image/png", plot(k_grid, 
+                        permutedims(C0), 
+                        title="Final consumption policy function", 
+                        label=permutedims(["z = $(i)" for i in 1:m]), 
+                        xlabel="Capital", 
+                        ylabel="Policy (consumption)"))
