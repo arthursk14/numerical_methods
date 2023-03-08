@@ -513,16 +513,15 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         C0 = zeros(m,N)
         Ci = zeros(m,N)
 
+    # Create the matrices for the value function
+        V0 = ones(m,N)
+        Vi = ones(m,N)
+
     # Create the matrices for the available resource in the economy 
         # Exogenous grids, for each z
         r0 = zeros(m,N)
         # Endogenous grids, for each z
-            ri = zeros(m,N)
-    
-    # Create the matrix for the endogenous grid
-        k_grid_e = zeros(N,1)
-    # Create the matrix for the policy function 
-        kp_grid = zeros(N,1)
+        ri = zeros(m,N)    
 
     # Initial guess for the consumption policy function (C0)
         for (i,z) in enumerate(z_grid)
@@ -530,29 +529,35 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 C0[i,j] = z*(k^α) + (1-δ)*k - k;
             end
         end
+    
+    # Initial guess for the consumption policy function (C0)
+    for (i,z) in enumerate(z_grid)
+        for (j,k) in enumerate(k_grid) 
+            C0[i,j] = z*(k^α) + (1-δ)*k - k;
+        end
+    end
+
+    # Fill the matrix of the exogenous grids r(k)
+        for (i,z) in enumerate(z_grid)
+            for (j,k) in enumerate(k_grid) 
+                r0[i,j] = z*(k^α) + (1-δ)*k;
+            end
+        end
 
     # Plot the initial guess
-
-    display("image/png", plot(k_grid, 
-                         permutedims(C0), 
-                         title="Consumption policy function initial guess", 
-                         label=permutedims(["z = $(i)" for i in 1:m]), 
-                         xlabel="Capital", 
-                         ylabel="Policy (consumption)"))  
+        display("image/png", plot(k_grid, 
+                             permutedims(C0), 
+                             title="Consumption Policy Function Initial Guess", 
+                             label=permutedims(["z = $(i)" for i in 1:m]), 
+                             xlabel="Capital", 
+                             ylabel="Policy (consumption)"))  
 
 # Iterations
 
-    # Fill the matrix of the exogenous grids
-    for (i,z) in enumerate(z_grid)
-        for (j,k) in enumerate(k_grid) 
-            r0[i,j] = z*(k^α) + (1-δ)*k;
-        end
-    end
-            
-    while (dist > tol) && (iter < max_iter)
+    # Matrix to save the RHS of the Euler Equation
+    RHS = zeros(m,N)
 
-        # Matrix to save the RHS of the Euler Equation
-        RHS = zeros(m,N)
+    while (dist > tol) && (iter < max_iter)        
 
         # Loop through all possible states
         for (i,z) in enumerate(z_grid)
@@ -568,6 +573,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 RHS[i,j] = u_c_inv(two)
                 # Value for the endogenous grid
                 ri[i,j] = RHS[i,j] + k
+                Vi[i,j] = u(RHS[i,j],μ) + β * dot(P[i,:],V0[:,j])
                 
             end           
             
@@ -576,80 +582,105 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         # Interpolate (extrapolate if needed) to find the new consumption police function
         for (i,z) in enumerate(z_grid)
             Ci[i,:] = LinearInterpolation(ri[i,:], RHS[i,:], extrapolation_bc=Line())[r0[i,:]]
+            Vi[i,:] = LinearInterpolation(ri[i,:], Vi[i,:], extrapolation_bc=Line())[r0[i,:]]
         end    
                 
-        dist = norm(Ci-C0, Inf)
-        iter = iter + 1
-        C0 = Ci;
+        global dist = norm(Ci-C0, Inf)
+        global iter = iter + 1
+        global C0 = copy(Ci)
+        global V0 = copy(Vi)
         
+        # Print results of every iteration
         t = now()
         print("$iter: $t, $dist \n")
 
     end
 
-    display("image/png", plot(k_grid, 
-                        permutedims(C0), 
-                        title="Final consumption policy function", 
-                        label=permutedims(["z = $(i)" for i in 1:m]), 
-                        xlabel="Capital", 
-                        ylabel="Policy (consumption)"))
+    C_final_egm = copy(C0)
+    V_final_egm = copy(V0)
 
-# Iterations (old)
-        
-while (dist > tol) && (iter < max_iter)
+    # Plot
 
-    # Loop through all possible states
-    for (i,z) in enumerate(z_grid)
+        display("image/png", plot(k_grid, 
+                             permutedims(V_final_egm), 
+                             title="Final Value Function (EGM)", 
+                             label=permutedims(["z = $(i)" for i in 1:m]), 
+                             xlabel="Capital", 
+                             ylabel="Value"))
 
-        # Loop through all possible kprimes
-        for (j,k) in enumerate(k_grid)  
-            
-            # All possible values (changing z_{t+1}) for the expression within the expectation
-            one = u_c(C0[:,j]).*(z_grid.*α.*(k^(α-1)).+(1-δ))
-            # Take the expectation
-            two = β*dot(P[i,:],one)                
+        display("image/png", plot(k_grid, 
+                             permutedims(C_final_egm), 
+                             title="Final Consumption Policy Function (EGM)", 
+                             label=permutedims(["z = $(i)" for i in 1:m]), 
+                             xlabel="Capital", 
+                             ylabel="Policy (consumption)"))
+ 
+    # In the end, we can recover the endogenous grid k, for each z, to compute EEE
 
-            # two = 0
-            # for w = 1:m
-            #     one = u_c(C0[w,j])*(z_grid[w]*α*(k^(α-1)) + (1-δ));
-            #     two = two + β*P[i,w]*one;
-            # end
+        # Create the matrix for the endogenous grid
+        k_grid_e = zeros(m,N)
 
-            # RHS of the Euler equation
-            RHS = u_c_inv(two)
-
-            # What is the k that maximizes this kprime?
-            function f(x)
-                (z*(x^α) + (1-δ)*x - k) - RHS
+        # Loop through all possible states
+        for (i,z) in enumerate(z_grid)
+            # Loop through all possible kprimes
+            for (j,k) in enumerate(k_grid)
+                # This is the function to find the k corresponding to the given kprime
+                function f(x)
+                    (z*(x^α) + (1-δ)*x - RHS[i,j]) - k
+                end
+                # Save the k that is makes f = 0 (i.e. kprime = z*(k^α) + (1-δ)*k - RHS[i,j]) 
+                k_grid_e[i,j] = bisection(f, 0, 1e3)
             end
+        end    
 
-            # Save the k that maximizes 
-            k_grid_e[j] = bisection(f, 0, 1e3)
+    # Get capital policy function
+        K_final_egm = zeros(m,N)
+
+        for (i, z) in enumerate(z_grid)
+            for (j, k) in enumerate(k_grid)
+                K_final_egm[i,j] = (1 - δ)*k + z*k^α - C_final_egm[i,j]
+            end
+        end
+
+    # Plot
+        display("image/png", plot(k_grid, 
+                             permutedims(K_final_egm), 
+                             title="Final Capital Policy Function (EGM)", 
+                             label=permutedims(["z = $(i)" for i in 1:m]), 
+                             xlabel="Capital", 
+                             ylabel="Policy (capital)"))
+
+    # Compute EEE
+
+        function EEE_egm(C, K, kgrid, zgrid)
+
+            EEE = zeros(m,N)
+
+            for (i,z) in enumerate(zgrid)
+                for (j,k) in enumerate(kgrid[i,:])
+                    # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
+                    one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
+                    # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
+                    two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
+                    # Element-wise multiplication
+                    three = one.*two                
+                    # Compute the expectation on z_{t+1}, given z_t and
+                    four = dot(P[i,:],three)
+                    # Euler Equation Error
+                    EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
+                end
+            end  
             
+            return EEE
+
         end
         
-        # Interpolate (extrapolate if needed) to find the police function of the endogenous grid
-        kp_grid = LinearInterpolation(vec(k_grid_e), collect(k_grid), extrapolation_bc=Line())
-        
-        # Compute the update of the consumption policy function
-        for (j,k) in enumerate(k_grid)
-            Ci[i,j] = z*(k^α) + (1-δ)*k - kp_grid[k]
-        end
-        
-    end
-    
-    dist = norm(Ci-C0, Inf)
-    iter = iter + 1
-    C0 = Ci;
-    
-    t = now()
-    print("$iter: $t, $dist \n")
+        EEE_final_egm = EEE_egm(C_final_egm, K_final_egm, k_grid_e, z_grid)
 
-end
-
-display("image/png", plot(k_grid, 
-                     permutedims(C0), 
-                     title="Final consumption policy function", 
-                     label=permutedims(["z = $(i)" for i in 1:m]), 
-                     xlabel="Capital", 
-                     ylabel="Policy (consumption)"))
+        # Plot
+            display("image/png", plot(k_grid, 
+                                 permutedims(EEE_final_egm), 
+                                 title="Euler Equation Errors (EGM)", 
+                                 label=permutedims(["z = $(i)" for i in 1:m]), 
+                                 xlabel="Capital", 
+                                 ylabel="EEE"))  
