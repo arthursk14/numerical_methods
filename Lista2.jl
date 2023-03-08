@@ -1,5 +1,16 @@
 using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots, Dates
 
+# Install and import packages (if they are not yet installed)
+# import Pkg; Pkg.add("Distributions")
+# import Pkg; Pkg.add("LinearAlgebra")
+# import Pkg; Pkg.add("Plots")
+# import Pkg; Pkg.add("Random")
+# import Pkg; Pkg.add("Statistics")
+# import Pkg; Pkg.add("BenchmarkTools")
+# import Pkg; Pkg.add("Interpolations")
+# import Pkg; Pkg.add("Roots")
+# import Pkg; Pkg.add("Dates")
+
 # Calibration
 
     α = 0.33
