@@ -137,7 +137,23 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
         
         three = one .* two
-        # Expectation
+
         return β * dot(P[z,:],three) - 1
         
+    end
+
+# Create the system of d+1 equations to solve for γ
+    function system(γ, d)
+
+        aux = zeros(m, d+1)
+        roots, k_roots = chebyshev_root(d)
+        
+    for i = 1:m
+        for j = 1:(d+1)
+            aux[i,j] = R(γ, k_roots[j], d, i)
+        end
+    end
+        
+        return reshape(aux, :, 1)
+    
     end
