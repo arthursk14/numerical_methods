@@ -98,3 +98,46 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return roots, kgrid_roots
 
     end
+
+# Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polinomial of order d
+    function c_hat(γ, k, d)
+        
+        # Transforming k to the resized grid, domain = [-1,1]
+        k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
+
+        # Variable to sum for each power
+        sum = 0
+        
+        # Loop to sum for each power
+        for i = 1:(d+1)
+            sum = sum + γ[i]*chebyshev(i-1, k_resized)
+        end
+        
+        return sum
+        
+    end
+
+# Residual function
+
+    function R(γ, k, d, z)
+        
+        C0 = c_hat(γ[z,:], k, d)
+        K1 = z*(k^(α)) + (1-δ)*k - C0
+        
+        one = zeros(m,1)
+        two = zeros(m,1)
+        
+        for i = 1:m
+        
+            C1 = c_hat(γ[i,:], K1, d)
+            
+            one[i] = (1 - δ + α*z_grid(i)*K1^(α-1))
+            two[i] = u_c(C1/C0)
+        
+        end
+        
+        three = one .* two
+        # Expectation
+        return β * dot(P[z,:],three) - 1
+        
+    end
