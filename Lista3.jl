@@ -157,21 +157,62 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     
     end
 
+# Much faster way (and working)
+
+    function chebyshev(d,x)
+        t = zeros(length(x),d+1)
+        for j in 0:d
+            t[:,j+1] = cos.(j*acos.(capital))
+        end
+        return t
+    end
+
+    function c_hat(γ,t)
+        return dot(γ,t)
+    end
+
+    function chebyshev_root(d)
+        return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
+    end
+
+    function transform(x)
+        return (k_grid[length(k_grid)]-k_grid[1]).*(x .+ 1)./2 .+ k_grid[1]
+    end
+
+    function R(γ,d)
+
+        res = zeros(d+1,m)    
+        roots = chebyshev_root(d)
+        K0 = transform(roots)   
+        t0 = chebyshev(d,roots)    
+        C0 = c_hat(γ,t0)    
+        K1 = K0.^(α)*z_grid' .+ (1 - δ).*K0 .- C0
+        K1t = cb_zero(K1)
+    
+        for i in 1:nz
+            t1 = chebyshev(d, K1t[:,i])
+            C1 = c_hat(γ, t1)
+            one = u_c(C1)
+            two = α*K1[:,i].^(α-1)*grid_z' .+ (1-δ) 
+            three = one.*two
+            for j in 1:(d+1)
+                res[j,i] = u_c(C0[j,i]) - β *dot(P[i,:],three[j,:])
+            end
+        end
+    
+        return res
+    end
+
 # Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
-    for i = 1:d 
-        if i == 1
-            γ0 = ones(m, i+1)
-            function system_γ(γ)
-                return system(γ, i)
-            end
-            γ_star = nlsolve(system_γ, γ0)
-        else
-            γ_new = hcat(γ_star.zero,ones(m,1))
-            function system_γ(γ)
-                return system(γ, i)
-            end
-            γ_star = nlsolve(system_γ, γ_new)
-         end
+    global γ0 = ones(m, i+1)
+    global h = 1
+    global γ_star = ones(m, i+1)
+
+    @time while h <= 5
+        system_γ(γ) = system(γ,h)
+        global γ_star = nlsolve(system_γ, γ0).zero
+        global γ0 = hcat(γ_star,ones(m,1))
+        global h = h + 1
     end
 
 # Consumption policy function using the "optimal" γ
