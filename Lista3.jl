@@ -130,13 +130,14 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             C1 = c_hat(γ[i,:], K1, d)
             
             one[i] = (1 - δ + α*z_grid[i]*K1^(α-1))
-            two[i] = u_c(C1/C0)
+            two[i] = u_c(C1)
         
         end
         
         three = one .* two
+        four = β * dot(P[z,:],three)
 
-        return β * dot(P[z,:],three) - 1
+        return u_c(C0) - four
         
     end
 
@@ -152,7 +153,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             end
         end
 
-        return reshape(aux, :, 1)
+        return permutedims(aux)
     
     end
 
