@@ -196,7 +196,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     
         for i in 1:m
             t1 = chebyshev(d, K1t[:,i])
-            C1 = c_hat(gamas, t1)
+            C1 = c_hat(γ, t1)
             one = u_c(C1)
             two = (α)*K1[:,i].^(1-α)*z_grid' .+ (1-δ) 
             three = one.*two
@@ -208,18 +208,14 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return res
     end
 
-    res(ones(2,7),1,grid_z,P)
-    
-
 # Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
-    global γ0 = ones(m, i+1)
-    global h = 1
-    global γ_star = ones(m, i+1)
-
+    global γ0 = ones(2,m)
+    global h = 1 
+    global γ_star = ones(2,m)
     @time while h <= 5
-        system_γ(γ) = system(γ,h)
-        global γ_star = nlsolve(system_γ, γ0).zero
-        global γ0 = hcat(γ_star,ones(m,1))
+        g(γ) = res(γ,h)
+        global γ_star = nlsolve(g,γ0).zero
+        global γ0 = vcat(γ_star, zeros(1,m))
         global h = h + 1
     end
 
