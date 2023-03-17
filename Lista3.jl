@@ -123,10 +123,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Residual function
 
     function R(γ, k, d, z)
-        
+
         C0 = c_hat(γ[z,:], k, d)
         K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
-        
+
         one = zeros(m,1)
         two = zeros(m,1)
         
@@ -165,17 +165,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
     for i = 1:d 
         if i == 1
-            γ0 = ones(m, i+1)
-            function f(γ)
+            global γ0 = ones(m, i+1)
+            local function f(γ)
                 return system(γ, i)
             end
-            γ_star = nlsolve(f, γ0, autodiff=:forward)
-            γ0 = copy(γ_star)
+            global γ_star = nlsolve(f, γ0)
         else
-            γ_new = hcat(γ0,ones(m,1))
-            function f(γ)
+            γ_new = hcat(γ_star.zero[:,1],ones(m,1))
+            local function f(γ)
                 return system(γ, i)
             end
-            γ_star = nlsolve(f, γ_new, autodiff=:forward)
+            global γ_star = nlsolve(f, γ_new)
          end
     end
