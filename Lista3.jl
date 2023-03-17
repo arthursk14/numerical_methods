@@ -1,7 +1,7 @@
 using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots, Dates, NLsolve
 
 # Calibration
-    α = 0.33
+    α = 1/3
     β = 0.987
     δ = 0.012
     σ = 0.007
@@ -76,7 +76,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     function u_c(c)
         return c.^(-μ)
     end
-    
+
 # Chebychev function
     function chebyshev(j,x)
         return cos(j*acos(x))
@@ -85,8 +85,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Find roots
     function chebyshev_root(d)
 
-        roots = zeros(d+1,1)
-        kgrid_roots = zeros(d+1,1)
+        roots = zeros(d+1)
+        kgrid_roots = zeros(d+1)
             
         for i in 1:(d+1)
             roots[i] = -cos((2*i-1)/(2*(d+1)) * pi)
@@ -120,10 +120,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     function R(γ, k, d, z)
 
         C0 = c_hat(γ[z,:], k, d)
-        K1 = max(min(z_grid[z]*(k^α) + (1-δ)*k - C0, k_grid[length(k_grid)]), k_grid[1])
+        K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
 
-        one = zeros(m,1)
-        two = zeros(m,1)
+        one = zeros(m)
+        two = zeros(m)
         
         for i = 1:m
         
@@ -140,7 +140,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         
     end
 
-# Create the system of d+1 equations to solve for γ
+# Create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polinomial
     function system(γ, d)
 
         aux = zeros(m, d+1)
