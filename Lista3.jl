@@ -62,44 +62,171 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     # Transform to the original scale of the AR(1) process
         z_grid = exp.(Z)
 
-# Utility function
-    function u(c,mu)
-        c = float(c)
-        if c < 0
-            u = -Inf
-        else
-            u = (c^(1-mu)-1)/(1-mu)
-        end
-    end
-
 # Derivative of the utility function
     function u_c(c)
         return c.^(-μ)
     end
 
 # Chebychev function
-    function chebyshev(j,x)
-        return cos(j*acos(x))
-    end
+    # function chebyshev(j,x)
+    #     return cos(j*acos(x))
+    # end
 
 # Find roots
-    function chebyshev_root(d)
+    # function chebyshev_root(d)
 
-        roots = zeros(d+1)
-        kgrid_roots = zeros(d+1)
+    #     roots = zeros(d+1)
+    #     kgrid_roots = zeros(d+1)
             
-        for i in 1:(d+1)
-            roots[i] = -cos((2*i-1)/(2*(d+1)) * pi)
-            kgrid_roots[i] = ((1 + roots[i])/2)*(k_grid[length(k_grid)]-k_grid[1]) + k_grid[1]
-        end
+    #     for i in 1:(d+1)
+    #         roots[i] = -cos((2*i-1)/(2*(d+1)) * pi)
+    #         kgrid_roots[i] = ((1 + roots[i])/2)*(k_grid[length(k_grid)]-k_grid[1]) + k_grid[1]
+    #     end
 
-        return roots, kgrid_roots
+    #     return roots, kgrid_roots
 
-    end
+    # end
 
 # Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polinomial of order d
-    function c_hat(γ, k, d)
+    # function c_hat(γ, k, d)
         
+    #     # Transforming k to the resized grid, domain = [-1,1]
+    #     k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
+
+    #     # Variable to sum for each power
+    #     sum = 0
+        
+    #     # Loop to sum for each power
+    #     for i = 1:(d+1)
+    #         sum = sum + γ[i]*chebyshev(i-1, k_resized)
+    #     end
+        
+    #     return sum
+        
+    # end
+
+# Residual function
+
+    # function R(γ, k, d, z)
+
+    #     C0 = c_hat(γ[z,:], k, d)
+    #     K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
+
+    #     one = zeros(m)
+    #     two = zeros(m)
+        
+    #     for i = 1:m
+        
+    #         C1 = c_hat(γ[i,:], K1, d)
+            
+    #         one[i] = (1 - δ + α*z_grid[i]*K1^(α-1))
+    #         two[i] = u_c(C1)
+        
+    #     end
+        
+    #     three = one .* two
+    #     four = β * dot(P[z,:],three)
+
+    #     return u_c(C0) - four
+        
+    # end
+
+# Create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polinomial
+    # function system(γ, d)
+
+    #     aux = zeros(m, d+1)
+    #     roots, k_roots = chebyshev_root(d)
+        
+    #     for i = 1:m
+    #         for j = 1:(d+1)
+    #             aux[i,j] = R(γ, k_roots[j], d, i)
+    #         end
+    #     end
+
+    #     return permutedims(aux)
+    
+    # end
+
+# Much faster way (and working)
+
+S = z_grid
+    
+function chebyshev_root(d)
+    return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
+end
+
+function chebyshev(d; x)
+    t = zeros(length(x),d+1)
+    for j in 0:d
+        t[:,j + 1] = cos.(j*acos.(x))
+    end
+    return t
+end
+
+function consumo(gamas;teis)
+    c = teis*gamas
+    return c
+end
+
+
+#################################
+## tudo isso na função residuo ##
+#################################
+grid_z = z_grid
+d = 1
+
+function cb_ss(x)
+    return (k_grid[length(k_grid)]-k_grid[1]).*(x .+ 1)./2 .+ k_grid[1]
+end
+
+function cb_zero(x)
+    return 2 .* (x .- k_grid[1]) ./ (k_grid[length(k_grid)] - k_grid[1]) .- 1
+end
+
+function res(gamas,d,grid_z,P)
+    nz = length(grid_z)
+    res = zeros(d+1,nz)
+
+    r_1 = chebyshev_root(d) # raízes para calcular o polinomio
+    k_0 = cb_ss(r_1) # capital em nível
+
+    t = chebyshev(d; x = r_1) # termos do polinomio
+
+    c_0 = consumo(gamas; teis = t) # consumo com polinomios
+
+    k_1 = k_0.^(1/3)*grid_z' .+ (1 - 0.012).*k_0 .- c_0
+    capital_1 = cb_zero(k_1)  # normalizamos p/ [-1,1]
+
+    for estado in 1:nz
+        teis_1 = chebyshev(d; x = capital_1[:,estado]) # polinomios novos
+        c_1 = consumo(gamas;teis = teis_1)
+        ulinha = c_1.^(-2)
+        dcdk = (1/3)*k_1[:,estado].^(-2/3)*grid_z' .+ (1-0.012) 
+        lde = ulinha.*dcdk
+        for id in 1:d+1
+            res[id,estado] = c_0[id,estado]^(-2) - 0.987*dot(P[estado,:],lde[id,:])
+        end
+    end
+
+    return res
+end
+
+res(ones(2,7),1,grid_z,P)
+global guess = ones(2,7)
+global s=1 
+global gamaotimo = ones(2,7)
+@time while s <= 5
+    g(gamas) = res(gamas,s,S,P)
+    gamaotimo = nlsolve(g,guess).zero
+    global guess = vcat(gamaotimo, zeros(1,7))
+    global s = s+1
+end
+gamaotimo
+
+# Consumption policy function using the "optimal" γ
+
+    function c_hat_single_value(γ, k, d)
+            
         # Transforming k to the resized grid, domain = [-1,1]
         k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
 
@@ -115,115 +242,15 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         
     end
 
-# Residual function
-
-    function R(γ, k, d, z)
-
-        C0 = c_hat(γ[z,:], k, d)
-        K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
-
-        one = zeros(m)
-        two = zeros(m)
-        
-        for i = 1:m
-        
-            C1 = c_hat(γ[i,:], K1, d)
-            
-            one[i] = (1 - δ + α*z_grid[i]*K1^(α-1))
-            two[i] = u_c(C1)
-        
-        end
-        
-        three = one .* two
-        four = β * dot(P[z,:],three)
-
-        return u_c(C0) - four
-        
+    # Chebychev function
+    function chebyshev_single_value(j,x)
+        return cos(j*acos(x))
     end
 
-# Create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polinomial
-    function system(γ, d)
-
-        aux = zeros(m, d+1)
-        roots, k_roots = chebyshev_root(d)
-        
-        for i = 1:m
-            for j = 1:(d+1)
-                aux[i,j] = R(γ, k_roots[j], d, i)
-            end
-        end
-
-        return permutedims(aux)
-    
-    end
-
-# Much faster way (and working)
-
-    function chebyshev(d,x)
-        t = zeros(length(x),d+1)
-        for j in 0:d
-            t[:,j+1] = cos.(j*acos.(x))
-        end
-        return t
-    end
-
-    function c_hat(γ,t)
-        return t*γ
-    end
-
-    function chebyshev_root(d)
-        return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
-    end
-
-    function transform(x)
-        return (k_grid[length(k_grid)] - k_grid[1]) .* (x .+ 1) ./ 2 .+ k_grid[1]
-    end
-
-    function transform_back(x)
-        return 2 .* (x .- k_grid[1]) ./ (k_grid[length(k_grid)] - k_grid[1]) .- 1
-    end
-
-    function res(γ,d)
-
-        res = zeros(d+1,m)
-        roots = chebyshev_root(d)
-        K0 = transform(roots)
-        t0 = chebyshev(d, roots)
-        C0 = c_hat(γ, t0)
-    
-        K1 = K0.^(α)*z_grid' .+ (1 - δ).*K0 .- C0
-        K1t = transform_back(K1)
-    
-        for i in 1:m
-            t1 = chebyshev(d, K1t[:,i])
-            C1 = c_hat(γ, t1)
-            one = u_c(C1)
-            two = (α)*K1[:,i].^(1-α)*z_grid' .+ (1-δ) 
-            three = one.*two
-            for j in 1:d+1
-                res[j,i] = u_c(C0[j,i]) - β * dot(P[i,:],three[j,:])
-            end
-        end
-    
-        return res
-    end
-
-# Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
-    global γ0 = ones(2,m)
-    global h = 1 
-    global γ_star = ones(2,m)
-    @time while h <= 5
-        g(γ) = res(γ,h)
-        global γ_star = nlsolve(g,γ0).zero
-        global γ0 = vcat(γ_star, zeros(1,m))
-        global h = h + 1
-    end
-
-# Consumption policy function using the "optimal" γ
     C = zeros(m, N)
     for i = 1:m
         for j = 1:N
-            C[i,j] = c_hat(γ_star.zero[i,:], k_grid[j], 5)
+            C[i,j] = c_hat_single_value(gamaotimo[:,i], k_grid[j], 5)
         end
     end
 
