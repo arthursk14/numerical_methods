@@ -76,12 +76,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     function u_c(c)
         return c.^(-μ)
     end
-
-# Inverse of the derivative of the utility function
-    function u_c_inv(c)
-        return c.^(-1/μ)
-    end
-
+    
 # Chebychev function
     function chebyshev(j,x)
         return cos(j*acos(x))
@@ -125,7 +120,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     function R(γ, k, d, z)
 
         C0 = c_hat(γ[z,:], k, d)
-        K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
+        K1 = max(min(z_grid[z]*(k^α) + (1-δ)*k - C0, k_grid[length(k_grid)]), k_grid[1])
 
         one = zeros(m,1)
         two = zeros(m,1)
@@ -156,11 +151,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 aux[i,j] = R(γ, k_roots[j], d, i)
             end
         end
-        
+
         return reshape(aux, :, 1)
     
     end
-
 
 # Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
     for i = 1:d 
@@ -171,10 +165,25 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             end
             γ_star = nlsolve(system_γ, γ0)
         else
-            γ_new = hcat(γ_star.zero[:,1],ones(m,1))
+            γ_new = hcat(γ_star.zero,ones(m,1))
             function system_γ(γ)
-                return system(system_γ, i)
+                return system(γ, i)
             end
             γ_star = nlsolve(system_γ, γ_new)
          end
     end
+
+# Consumption policy function using the "optimal" γ
+    C = zeros(m, N)
+    for i = 1:m
+        for j = 1:N
+            C[i,j] = c_hat(γ_star.zero[i,:], k_grid[j], 5)
+        end
+    end
+
+    display("image/png", plot(k_grid, 
+                         permutedims(C), 
+                         title="Consumption Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))
