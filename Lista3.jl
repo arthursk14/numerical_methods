@@ -165,16 +165,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
     for i = 1:d 
         if i == 1
-            global γ0 = ones(m, i+1)
-            local function f(γ)
+            γ0 = ones(m, i+1)
+            function system_γ(γ)
                 return system(γ, i)
             end
-            global γ_star = nlsolve(f, γ0)
+            γ_star = nlsolve(system_γ, γ0)
         else
             γ_new = hcat(γ_star.zero[:,1],ones(m,1))
-            local function f(γ)
-                return system(γ, i)
+            function system_γ(γ)
+                return system(system_γ, i)
             end
-            global γ_star = nlsolve(f, γ_new)
+            γ_star = nlsolve(system_γ, γ_new)
          end
     end
