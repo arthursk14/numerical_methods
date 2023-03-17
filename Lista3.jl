@@ -1,4 +1,4 @@
-using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots, Dates
+using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots, Dates, NLsolve
 
 # Calibration
     α = 0.33
@@ -18,6 +18,9 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     k_min = 0.75*k_ss
     k_max = 1.25*k_ss
     k_grid = range(k_min, k_max, length=N)
+
+# Order of the polinomial
+    d = 5
 
 # Discretizing the TFP process using Tauchen method
 
@@ -122,7 +125,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     function R(γ, k, d, z)
         
         C0 = c_hat(γ[z,:], k, d)
-        K1 = z*(k^(α)) + (1-δ)*k - C0
+        K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
         
         one = zeros(m,1)
         two = zeros(m,1)
@@ -131,7 +134,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         
             C1 = c_hat(γ[i,:], K1, d)
             
-            one[i] = (1 - δ + α*z_grid(i)*K1^(α-1))
+            one[i] = (1 - δ + α*z_grid[i]*K1^(α-1))
             two[i] = u_c(C1/C0)
         
         end
@@ -148,12 +151,31 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         aux = zeros(m, d+1)
         roots, k_roots = chebyshev_root(d)
         
-    for i = 1:m
-        for j = 1:(d+1)
-            aux[i,j] = R(γ, k_roots[j], d, i)
+        for i = 1:m
+            for j = 1:(d+1)
+                aux[i,j] = R(γ, k_roots[j], d, i)
+            end
         end
-    end
         
         return reshape(aux, :, 1)
     
+    end
+
+
+# Loop to find γ_star, starting with a guess for the polinomial of order 2; and then using the result of the current iteration as the guess for the next d
+    for i = 1:d 
+        if i == 1
+            γ0 = ones(m, i+1)
+            function f(γ)
+                return system(γ, i)
+            end
+            γ_star = nlsolve(f, γ0, autodiff=:forward)
+            γ0 = copy(γ_star)
+        else
+            γ_new = hcat(γ0,ones(m,1))
+            function f(γ)
+                return system(γ, i)
+            end
+            γ_star = nlsolve(f, γ_new, autodiff=:forward)
+         end
     end
