@@ -148,84 +148,76 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     # end
 
 # Much faster way (and working)
-
-S = z_grid
-    
-function chebyshev_root(d)
-    return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
-end
-
-function chebyshev(d; x)
-    t = zeros(length(x),d+1)
-    for j in 0:d
-        t[:,j + 1] = cos.(j*acos.(x))
+        
+    function chebyshev_root(d)
+        return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
     end
-    return t
-end
 
-function consumo(gamas;teis)
-    c = teis*gamas
-    return c
-end
-
-
-#################################
-## tudo isso na função residuo ##
-#################################
-grid_z = z_grid
-d = 1
-
-function cb_ss(x)
-    return (k_grid[length(k_grid)]-k_grid[1]).*(x .+ 1)./2 .+ k_grid[1]
-end
-
-function cb_zero(x)
-    return 2 .* (x .- k_grid[1]) ./ (k_grid[length(k_grid)] - k_grid[1]) .- 1
-end
-
-function res(gamas,d,grid_z,P)
-    nz = length(grid_z)
-    res = zeros(d+1,nz)
-
-    r_1 = chebyshev_root(d) # raízes para calcular o polinomio
-    k_0 = cb_ss(r_1) # capital em nível
-
-    t = chebyshev(d; x = r_1) # termos do polinomio
-
-    c_0 = consumo(gamas; teis = t) # consumo com polinomios
-
-    k_1 = k_0.^(1/3)*grid_z' .+ (1 - 0.012).*k_0 .- c_0
-    capital_1 = cb_zero(k_1)  # normalizamos p/ [-1,1]
-
-    for estado in 1:nz
-        teis_1 = chebyshev(d; x = capital_1[:,estado]) # polinomios novos
-        c_1 = consumo(gamas;teis = teis_1)
-        ulinha = c_1.^(-2)
-        dcdk = (1/3)*k_1[:,estado].^(-2/3)*grid_z' .+ (1-0.012) 
-        lde = ulinha.*dcdk
-        for id in 1:d+1
-            res[id,estado] = c_0[id,estado]^(-2) - 0.987*dot(P[estado,:],lde[id,:])
+    function chebyshev(d; x)
+        t = zeros(length(x),d+1)
+        for j in 0:d
+            t[:,j + 1] = cos.(j*acos.(x))
         end
+        return t
     end
 
-    return res
-end
+    function C_hat(γ; t)
+        return t*γ
+    end
 
-res(ones(2,7),1,grid_z,P)
-global guess = ones(2,7)
-global s=1 
-global gamaotimo = ones(2,7)
-@time while s <= 5
-    g(gamas) = res(gamas,s,S,P)
-    gamaotimo = nlsolve(g,guess).zero
-    global guess = vcat(gamaotimo, zeros(1,7))
-    global s = s+1
-end
-gamaotimo
+    function transform(x)
+        return (k_grid[length(k_grid)]-k_grid[1]).*(x .+ 1)./2 .+ k_grid[1]
+    end
+
+    function transform_back(x)
+        return 2 .* (x .- k_grid[1]) ./ (k_grid[length(k_grid)] - k_grid[1]) .- 1
+    end
+
+    function res(γ,d)
+
+        res = zeros(d+1,m)
+        roots = chebyshev_root(d)
+
+        K0 = transform(roots)
+        t0 = chebyshev(d; x = roots)
+        C0 = C_hat(γ; t = t0)
+
+        K1 = K0.^α*z_grid' .+ (1 - δ).*K0 .- C0
+        K1_grid = transform_back(K1)
+
+        for i in 1:m
+            t1 = chebyshev(d; x = K1_grid[:,i])
+            c_1 = C_hat(γ; t = t1)
+            one = c_1.^(-2)
+            two = α*K1[:,i].^(α-1)*z_grid' .+ (1-δ) 
+            three = one.*two
+            for j in 1:d+1
+                res[j,i] = C0[j,i]^(-2) - β * dot(P[i,:],three[j,:])
+            end
+        end
+
+        return res
+    end
+
+    global γ0 = ones(2,7)
+    global h = 1 
+    global γ_star = ones(2,7)
+
+    @time while h <= 5
+        f(γ) = res(γ,h)
+        global γ_star = nlsolve(f,γ0).zero
+        global γ0 = vcat(γ_star, zeros(1,m))
+        global h = h + 1
+    end
 
 # Consumption policy function using the "optimal" γ
 
-    function c_hat_single_value(γ, k, d)
+    # Chebychev function for a single value
+    function chebyshev_single_value(j,x)
+        return cos(j*acos(x))
+    end
+
+    function c_hat(γ, k, d)
             
         # Transforming k to the resized grid, domain = [-1,1]
         k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
@@ -235,22 +227,17 @@ gamaotimo
         
         # Loop to sum for each power
         for i = 1:(d+1)
-            sum = sum + γ[i]*chebyshev(i-1, k_resized)
+            sum = sum + γ[i]*chebyshev_single_value(i-1, k_resized)
         end
         
         return sum
         
     end
 
-    # Chebychev function
-    function chebyshev_single_value(j,x)
-        return cos(j*acos(x))
-    end
-
     C = zeros(m, N)
     for i = 1:m
         for j = 1:N
-            C[i,j] = c_hat_single_value(gamaotimo[:,i], k_grid[j], 5)
+            C[i,j] = c_hat(γ_star[:,i], k_grid[j], 5)
         end
     end
 
