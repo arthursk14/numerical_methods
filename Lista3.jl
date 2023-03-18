@@ -431,7 +431,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     # Plot
     display("image/png", plot(k_grid, 
                          permutedims(C_fe), 
-                         title="Consumption Policy Function", 
+                         title="Consumption Policy Function (FE)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (consumption)"))
@@ -447,85 +447,85 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     # Plot
     display("image/png", plot(k_grid, 
                          permutedims(K_fe), 
-                         title="Capital Policy Function", 
+                         title="Capital Policy Function (FE)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (capital)"))
 
-# Recover value function
+    # Recover value function
 
-    # Approximate to the defined grid
-        i_grid = zeros(Int,m,N)
-        for (i, z) in enumerate(z_grid)
-            for (j, k) in enumerate(k_grid)
-                dif = abs.(K_fe[i,j] .- k_grid)
-                aux = min(dif...)
-                i_grid[i,j] = trunc(Int, findfirst(a -> a == aux, dif))
-            end
-        end
-
-    # Iterations
-        function convergence(V0, K0)
-
-            dist = Inf
-            tol = 1e-5
-            iter = 0
-            max_iter = 1e3
-
-            Vi = zeros(m,N)
-
-            while (dist > tol) && (iter < max_iter) 
-                Vi = Iter_V(V0, K0)
-                dist = norm(Vi-V0, Inf)
-                V0 = Vi
-                iter = iter + 1
-            end
-
-            return Vi, iter, dist
-        end
-
-        @time V_fe, iter, dist = convergence(zeros(m,N), K_fe)
-    
-    # Plot
-    display("image/png", plot(k_grid, 
-                         permutedims(V), 
-                         title="Value Function", 
-                         label=permutedims(["z = $(i)" for i in 1:m]), 
-                         xlabel="Capital", 
-                         ylabel="Value"))
-
-# Compute EEE
-
-    # EEE
-        function EEE_fe(C, K, kgrid, zgrid)
-
-            EEE = zeros(m,N)
-
-            for (i,z) in enumerate(zgrid)
-                for (j,k) in enumerate(kgrid)
-                    # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
-                    one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
-                    # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
-                    two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
-                    # Element-wise multiplication
-                    three = one.*two                
-                    # Compute the expectation on z_{t+1}, given z_t and
-                    four = dot(P[i,:],three)
-                    # Euler Equation Error
-                    EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
+        # Approximate to the defined grid
+            i_grid = zeros(Int,m,N)
+            for (i, z) in enumerate(z_grid)
+                for (j, k) in enumerate(k_grid)
+                    dif = abs.(K_fe[i,j] .- k_grid)
+                    aux = min(dif...)
+                    i_grid[i,j] = trunc(Int, findfirst(a -> a == aux, dif))
                 end
-            end  
-            
-            return EEE
+            end
 
-        end
+        # Iterations
+            function convergence(V0, K0)
+
+                dist = Inf
+                tol = 1e-5
+                iter = 0
+                max_iter = 1e3
+
+                Vi = zeros(m,N)
+
+                while (dist > tol) && (iter < max_iter) 
+                    Vi = Iter_V(V0, K0)
+                    dist = norm(Vi-V0, Inf)
+                    V0 = Vi
+                    iter = iter + 1
+                end
+
+                return Vi, iter, dist
+            end
+
+            @time V_fe, iter, dist = convergence(zeros(m,N), K_fe)
         
-    EEE_final_fe = EEE_fe(C_fe, K_fe, k_grid, z_grid)    
-    
-    # Plot
-    display("image/png", plot(k_grid, 
-                         permutedims(EEE_final_fe), 
-                         title="Euler Equation Errors", 
-                         label=permutedims(["z = $(i)" for i in 1:m]), 
-                         xlabel="Capital", 
-                         ylabel="EEE"))  
+        # Plot
+        display("image/png", plot(k_grid, 
+                            permutedims(V), 
+                            title="Value Function (FE)", 
+                            label=permutedims(["z = $(i)" for i in 1:m]), 
+                            xlabel="Capital", 
+                            ylabel="Value"))
+
+    # Compute EEE
+
+        # EEE
+            function EEE_fe(C, K, kgrid, zgrid)
+
+                EEE = zeros(m,N)
+
+                for (i,z) in enumerate(zgrid)
+                    for (j,k) in enumerate(kgrid)
+                        # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
+                        one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
+                        # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
+                        two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
+                        # Element-wise multiplication
+                        three = one.*two                
+                        # Compute the expectation on z_{t+1}, given z_t and
+                        four = dot(P[i,:],three)
+                        # Euler Equation Error
+                        EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
+                    end
+                end  
+                
+                return EEE
+
+            end
+            
+        EEE_final_fe = EEE_fe(C_fe, K_fe, k_grid, z_grid)
+        
+        # Plot
+        display("image/png", plot(k_grid, 
+                            permutedims(EEE_final_fe), 
+                            title="Euler Equation Errors (FE)", 
+                            label=permutedims(["z = $(i)" for i in 1:m]), 
+                            xlabel="Capital", 
+                            ylabel="EEE"))  
