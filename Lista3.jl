@@ -463,26 +463,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 end
             end
 
-        # Iterations
-            function convergence(V0, K0)
-
-                dist = Inf
-                tol = 1e-5
-                iter = 0
-                max_iter = 1e3
-
-                Vi = zeros(m,N)
-
-                while (dist > tol) && (iter < max_iter) 
-                    Vi = Iter_V(V0, K0)
-                    dist = norm(Vi-V0, Inf)
-                    V0 = Vi
-                    iter = iter + 1
-                end
-
-                return Vi, iter, dist
-            end
-
+        # Iterations        
             @time V_fe, iter, dist = convergence(zeros(m,N), K_fe)
         
         # Plot
@@ -512,8 +493,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     # Residual function
         function res_galerkin(a)
-
-            r = 1
 
             res = zeros(m, ne)            
             k_grid_e = range(k_grid[1], k_grid[length(k_grid)], length=ne)
@@ -556,8 +535,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                         end
                         
-                        res[i,r] = pi*(bL - aL)*auxL/(2*(ne-1))
-                        r = r + 1			
+                        res[i,j] = pi*(bL - aL)*auxL/(2*(ne-1))		
                         
                     elseif j == ne
 
@@ -593,8 +571,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                         end
                         
-                        res[i,r] = pi*(bU - aU)*auxU/(2*(ne-1))
-                        r = r + 1                
+                        res[i,j] = pi*(bU - aU)*auxU/(2*(ne-1))           
                         
                     else     
                         
@@ -661,8 +638,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                         end			
                         
-                        res[i,r] = pi*(bL - aL)*aux1/(2*(ne-1)) + pi*(bU - aU)*aux2/(2*(ne-1))
-                        r = r + 1
+                        res[i,j] = pi*(bL - aL)*aux1/(2*(ne-1)) + pi*(bU - aU)*aux2/(2*(ne-1))
                         
                     end                                           
                     
@@ -686,33 +662,33 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         @time a_star_galerkin = nlsolve(res_galerkin,a0).zero
 
     # Recover the whole function for consumption policy, using γ_star
-        C_fe = zeros(m, N)
+        C_galerkin = zeros(m, N)
         for i = 1:m
             for j = 1:N
-                C_fe[i,j] = C_hat_fe(a_star[i,:], k_grid[j])
+                C_galerkin[i,j] = C_hat_fe(a_star_galerkin[i,:], k_grid[j])
             end
         end
 
     # Plot
     display("image/png", plot(k_grid, 
-                         permutedims(C_fe), 
-                         title="Consumption Policy Function (FE)", 
+                         permutedims(C_galerkin), 
+                         title="Consumption Policy Function (FE Galerkin)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (consumption)"))
 
     # Recover the whole function for capital policy, using γ_star
-        K_fe = zeros(m, N)
+        K_galerkin = zeros(m, N)
         for (i, z) in enumerate(z_grid)
             for (j, k) in enumerate(k_grid)
-                K_fe[i,j] = (1 - δ)*k + z*k^α - C_fe[i,j]
+                K_galerkin[i,j] = (1 - δ)*k + z*k^α - C_galerkin[i,j]
             end
         end
 
     # Plot
     display("image/png", plot(k_grid, 
-                         permutedims(K_fe), 
-                         title="Capital Policy Function (FE)", 
+                         permutedims(K_galerkin), 
+                         title="Capital Policy Function (FE Galerkin)", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (capital)"))
@@ -723,54 +699,35 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             i_grid = zeros(Int,m,N)
             for (i, z) in enumerate(z_grid)
                 for (j, k) in enumerate(k_grid)
-                    dif = abs.(K_fe[i,j] .- k_grid)
+                    dif = abs.(K_galerkin[i,j] .- k_grid)
                     aux = min(dif...)
                     i_grid[i,j] = trunc(Int, findfirst(a -> a == aux, dif))
                 end
             end
 
-        # Iterations
-            function convergence(V0, K0)
-
-                dist = Inf
-                tol = 1e-5
-                iter = 0
-                max_iter = 1e3
-
-                Vi = zeros(m,N)
-
-                while (dist > tol) && (iter < max_iter) 
-                    Vi = Iter_V(V0, K0)
-                    dist = norm(Vi-V0, Inf)
-                    V0 = Vi
-                    iter = iter + 1
-                end
-
-                return Vi, iter, dist
-            end
-
-            @time V_fe, iter, dist = convergence(zeros(m,N), K_fe)
+        # Iterations  
+            @time V_galerkin, iter, dist = convergence(zeros(m,N), K_galerkin)
         
         # Plot
         display("image/png", plot(k_grid, 
-                            permutedims(V_fe), 
-                            title="Value Function (FE)", 
+                            permutedims(V_galerkin), 
+                            title="Value Function (FE Galerkin)", 
                             label=permutedims(["z = $(i)" for i in 1:m]), 
                             xlabel="Capital", 
                             ylabel="Value"))
 
     # Compute EEE
             
-        EEE_final_fe = EEE(C_fe, K_fe, k_grid, z_grid)
+        EEE_final_galerkin = EEE(C_galerkin, K_galerkin, k_grid, z_grid)
         
         # Plot
         display("image/png", plot(k_grid, 
-                            permutedims(EEE_final_fe), 
-                            title="Euler Equation Errors (FE)", 
+                            permutedims(EEE_final_galerkin), 
+                            title="Euler Equation Errors (FE Galerkin)", 
                             label=permutedims(["z = $(i)" for i in 1:m]), 
                             xlabel="Capital", 
                             ylabel="EEE"))  
 
     # Print a_star for Latex
-        latexify(round.(a_star, digits = 4))
+        latexify(round.(a_star_galerkin, digits = 4))
 
