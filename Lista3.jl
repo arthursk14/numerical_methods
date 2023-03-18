@@ -314,3 +314,218 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Print γ_star for Latex
     latexify(round.(γ_star, digits = 4))
+
+# Finite elements - collocation
+
+    # Number of elements
+        ne = 11
+
+    # Psi function
+        function psi_function(i, k)
+            
+            k_grid_e = range(k_grid[1], k_grid[length(k_grid)], length=ne)
+            
+            if i == 1
+                
+                if k >= k_grid_e[i] && k <= k_grid_e[i+1]
+                    psi = (k_grid_e[i+1] - k)/(k_grid_e[i+1] - k_grid_e[i])
+                else
+                    psi = 0
+                end
+                
+            elseif i == ne
+                
+                if k >= k_grid_e[i-1] && k <= k_grid_e[i]
+                    psi = (k - k_grid_e[i-1])/(k_grid_e[i] - k_grid_e[i-1])
+                else
+                    psi = 0
+                end
+                
+            else 
+                
+                if k >= k_grid_e[i-1] && k <= k_grid_e[i]
+                    psi = (k - k_grid_e[i-1])/(k_grid_e[i] - k_grid_e[i-1])
+                elseif k >= k_grid_e[i] && k <= k_grid_e[i+1]
+                    psi = (k_grid_e[i+1] - k)/(k_grid_e[i+1] - k_grid_e[i])
+                else
+                    psi = 0
+                end
+
+            end
+
+            return psi
+
+        end
+
+    # Approximate the consumption function
+        function C_hat_fe(a, k)
+
+            sum = 0
+            
+            for i = 1:ne
+                sum = sum + a[i]*psi_function(i, k)
+            end
+            
+            return sum
+        
+        end
+    
+    # Residual function
+        function R(a, k, z)
+            
+            C0 = C_hat_fe(a[z,:], k)
+            K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
+            
+            one = zeros(m)
+            two = zeros(m)
+            
+            for i = 1:m
+                
+                C1 = C_hat_fe(a[i,:], K1)
+                
+                one[i] = (1 - δ + α*z_grid[z]*K1^(α-1))
+                two[i] = u_c(C1/C0)
+                
+            end
+            
+            three = one .* two
+            return β * dot(P[z,:],three) - 1
+            
+        end
+            
+    # Residual function, we create the system of d+1 equations to solve for γ
+        function res_fe(x)
+
+            res = zeros(m,ne)
+            k_grid_e = range(k_grid[1], k_grid[length(k_grid)], length=ne)
+            
+            for i = 1:m
+                for j = 1:ne
+                    res[i,j] = R(x, k_grid_e[j], i)
+                end
+            end
+        
+            return res
+        
+        end
+
+    # Initial guess
+        a0 = zeros(m,ne)
+        for i = 1:m
+            for j = 1:ne
+                a0[i,j] = j
+            end
+        end
+
+    # Find zero
+        @time a_star = nlsolve(res_fe,a0).zero
+
+    # Recover the whole function for consumption policy, using γ_star
+        C_fe = zeros(m, N)
+        for i = 1:m
+            for j = 1:N
+                C_fe[i,j] = C_hat_fe(a_star[i,:], k_grid[j])
+            end
+        end
+
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(C_fe), 
+                         title="Consumption Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))
+
+    # Recover the whole function for capital policy, using γ_star
+    K_fe = zeros(m, N)
+    for (i, z) in enumerate(z_grid)
+        for (j, k) in enumerate(k_grid)
+            K_fe[i,j] = (1 - δ)*k + z*k^α - C_fe[i,j]
+        end
+    end
+
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(K_fe), 
+                         title="Capital Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (capital)"))
+
+# Recover value function
+
+    # Approximate to the defined grid
+        i_grid = zeros(Int,m,N)
+        for (i, z) in enumerate(z_grid)
+            for (j, k) in enumerate(k_grid)
+                dif = abs.(K_fe[i,j] .- k_grid)
+                aux = min(dif...)
+                i_grid[i,j] = trunc(Int, findfirst(a -> a == aux, dif))
+            end
+        end
+
+    # Iterations
+        function convergence(V0, K0)
+
+            dist = Inf
+            tol = 1e-5
+            iter = 0
+            max_iter = 1e3
+
+            Vi = zeros(m,N)
+
+            while (dist > tol) && (iter < max_iter) 
+                Vi = Iter_V(V0, K0)
+                dist = norm(Vi-V0, Inf)
+                V0 = Vi
+                iter = iter + 1
+            end
+
+            return Vi, iter, dist
+        end
+
+        @time V_fe, iter, dist = convergence(zeros(m,N), K_fe)
+    
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(V), 
+                         title="Value Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Value"))
+
+# Compute EEE
+
+    # EEE
+        function EEE_fe(C, K, kgrid, zgrid)
+
+            EEE = zeros(m,N)
+
+            for (i,z) in enumerate(zgrid)
+                for (j,k) in enumerate(kgrid)
+                    # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
+                    one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
+                    # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
+                    two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
+                    # Element-wise multiplication
+                    three = one.*two                
+                    # Compute the expectation on z_{t+1}, given z_t and
+                    four = dot(P[i,:],three)
+                    # Euler Equation Error
+                    EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
+                end
+            end  
+            
+            return EEE
+
+        end
+        
+    EEE_final_fe = EEE_fe(C_fe, K_fe, k_grid, z_grid)    
+    
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(EEE_final_fe), 
+                         title="Euler Equation Errors", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="EEE"))  
