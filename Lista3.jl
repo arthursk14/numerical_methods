@@ -278,7 +278,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # EEE
-        function EEE_chebyshev(C, K, kgrid, zgrid)
+        function EEE(C, K, kgrid, zgrid)
 
             EEE = zeros(m,N)
 
@@ -301,7 +301,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
         end
         
-    EEE_final = EEE_chebyshev(C, K, k_grid, z_grid)    
+    EEE_final = EEE(C, K, k_grid, z_grid)    
     
     # Plot
     display("image/png", plot(k_grid, 
@@ -494,32 +494,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             ylabel="Value"))
 
     # Compute EEE
-
-        # EEE
-            function EEE_fe(C, K, kgrid, zgrid)
-
-                EEE = zeros(m,N)
-
-                for (i,z) in enumerate(zgrid)
-                    for (j,k) in enumerate(kgrid)
-                        # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
-                        one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
-                        # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
-                        two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
-                        # Element-wise multiplication
-                        three = one.*two                
-                        # Compute the expectation on z_{t+1}, given z_t and
-                        four = dot(P[i,:],three)
-                        # Euler Equation Error
-                        EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
-                    end
-                end  
-                
-                return EEE
-
-            end
             
-        EEE_final_fe = EEE_fe(C_fe, K_fe, k_grid, z_grid)
+        EEE_final_fe = EEE(C_fe, K_fe, k_grid, z_grid)
         
         # Plot
         display("image/png", plot(k_grid, 
@@ -531,3 +507,261 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
     # Print a_star for Latex
         latexify(round.(a_star, digits = 4))
+
+
+# Finite elements - Galerkin
+
+    # Residual function
+        function res_galerkin(a)
+
+            r = 1
+
+            res = zeros(ne*(ne-1), 1)'            
+            k_grid_e = range(k_grid[1], k_grid[length(k_grid)], length=ne)
+            
+            for i = 1:m
+                
+                for j = 1:ne
+
+                    grid_inf = range(k_grid_e[j], k_grid_e[j+1], length=ne-1)
+                    grid_sup = range(k_grid_e[j-1], k_grid_e[j], length=ne-1)
+                    
+                    aL = grid_inf[1]
+                    bL = grid_inf[ne-1]
+                    
+                    aU = grid_sup[1]
+                    bU = grid_sup[ne-1]
+                
+                    if j == 1
+
+                        auxL = 0
+                        
+                        for h = 1:ne-1
+                            
+                            x = cos((2*h-1)/(2*(ne-1))*pi)   
+                            
+                            K0 = (1 + x)*(bL - aL)/2 + aL
+                            C0 = C_hat_fe(a[i,:], K0)
+                            
+                            K1 = z_grid[i]*(K0^(α)) + (1-δ)*K0 - C0
+                            
+                            one = zeros(m)
+                            two = zeros(m)
+                            
+                            for w = 1:m
+                                C1 = C_hat_fe(a[w,:], K1)
+                                one(w) = (1 - δ + α*z_grid[w]*K1^(α-1))
+                                two(w) = u_c(C1/C0)
+                            end
+                            
+                            three = one .* two
+                            R = β * dot(P[i,:],three) - 1
+                            
+                            auxL = auxL + R*psi_function(j, K0)*sqrt(1 - x^2)
+                            
+                        end
+                        
+                        res[r] = pi*(bL - aL)*auxL/(2*(ne-1))
+                        r = r + 1			
+                        
+                    elseif j == ne
+                        
+                        auxU = 0
+                        
+                        for h = 1:ne-1
+                            
+                            x = cos((2*h-1)/(2*(ne-1))*pi)
+                            
+                            K0 = (1 + x)*(bU - aU)/2 + aU
+                            C0 = C_hat_fe(a[i,:], K0)
+                            
+                            K1 = z_grid[i]*(K0^(α)) + (1-δ)*K0 - C0
+                            
+                            one = zeros(m)
+                            two = zeros(m)
+                            
+                            for w = 1:m
+                                C1 = C_hat_fe(a[w,:], K1)
+                                one[w] = (1 - δ + α*z_grid[w]*K1^(α-1))
+                                two[w] = u_c(C1/C0)
+                            end
+                            
+                            three = one .* two
+                            R = β * dot(P[i,:],three) - 1
+                            
+                            auxU = auxU + R*psi_function(j, K0)*sqrt(1 - x^2)
+                            
+                        end
+                        
+                        res[r] = pi*(bU - aU)*auxU/(2*(ne-1))
+                        r = r + 1                
+                        
+                    else                    
+                    
+                        aux1 = 0
+                        
+                        for i = 1:ne-1
+                            
+                            x = cos((2*h-1)/(2*(ne-1))*pi)
+                            
+                            K0 = (1 + x)*(bL - aL)/2 + aL
+                            C0 = C_hat_fe(a[i,:], K0)
+                            
+                            K1 = z_grid[i]*(K0^(α)) + (1-δ)*K0 - C0
+                            
+                            one = zeros(m)
+                            two = zeros(m)
+                            
+                            for w = 1:m
+                                C1 = C_hat_fe(a[w,:], K1)
+                                one[w] = (1 - δ + α*z_grid[w]*K1^(α-1))
+                                two[w] = u_c(C1/C0)
+                            end
+                            
+                            three = one .* two
+                            R = β * dot(P[i,:],three) - 1
+                            
+                            aux1 = aux1 + R*psi_function(j, K0)*sqrt(1 - x^2)
+                            
+                        end		
+
+                        aux2 = 0
+                        
+                        for h = 1:ne-1
+                            
+                            x = cos((2*h-1)/(2*(ne-1))*pi)
+                            
+                            K0 = (1 + x)*(bU - aU)/2 + aU
+                            C0 = C_hat_fe(a[i,:], K0)
+                            
+                            K1 = z_grid[i]*(K0^(α)) + (1-δ)*K0 - C0
+                            
+                            one = zeros(m)
+                            two = zeros(m)
+                            
+                            for w = 1:m
+                                C1 = C_hat_fe(a[w,:], K1)
+                                one[w] = (1 - δ + α*z_grid[w]*K1^(α-1))
+                                two[w] = u_c(C1/C0)
+                            end
+                            
+                            three = one .* two
+                            R = β * dot(P[i,:],three) - 1
+                            
+                            aux2 = aux2 + R*psi_function(j, K0)*sqrt(1 - x^2)
+                            
+                        end			
+                        
+                        res[r] = pi*(bL - aL)*aux1/(2*(ne-1)) + pi*(bU - aU)*aux2/(2*(ne-1))
+                        r = r + 1;
+                        
+                    end                                           
+                    
+                end
+                
+            end
+            
+        end
+        
+   
+      
+    # Initial guess
+        a0 = zeros(m,ne)
+        for i = 1:m
+            for j = 1:ne
+                a0[i,j] = j
+            end
+        end
+
+    # Find zero
+        @time a_star = nlsolve(res_fe,a0).zero
+
+    # Recover the whole function for consumption policy, using γ_star
+        C_fe = zeros(m, N)
+        for i = 1:m
+            for j = 1:N
+                C_fe[i,j] = C_hat_fe(a_star[i,:], k_grid[j])
+            end
+        end
+
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(C_fe), 
+                         title="Consumption Policy Function (FE)", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (consumption)"))
+
+    # Recover the whole function for capital policy, using γ_star
+        K_fe = zeros(m, N)
+        for (i, z) in enumerate(z_grid)
+            for (j, k) in enumerate(k_grid)
+                K_fe[i,j] = (1 - δ)*k + z*k^α - C_fe[i,j]
+            end
+        end
+
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(K_fe), 
+                         title="Capital Policy Function (FE)", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (capital)"))
+
+    # Recover value function
+
+        # Approximate to the defined grid
+            i_grid = zeros(Int,m,N)
+            for (i, z) in enumerate(z_grid)
+                for (j, k) in enumerate(k_grid)
+                    dif = abs.(K_fe[i,j] .- k_grid)
+                    aux = min(dif...)
+                    i_grid[i,j] = trunc(Int, findfirst(a -> a == aux, dif))
+                end
+            end
+
+        # Iterations
+            function convergence(V0, K0)
+
+                dist = Inf
+                tol = 1e-5
+                iter = 0
+                max_iter = 1e3
+
+                Vi = zeros(m,N)
+
+                while (dist > tol) && (iter < max_iter) 
+                    Vi = Iter_V(V0, K0)
+                    dist = norm(Vi-V0, Inf)
+                    V0 = Vi
+                    iter = iter + 1
+                end
+
+                return Vi, iter, dist
+            end
+
+            @time V_fe, iter, dist = convergence(zeros(m,N), K_fe)
+        
+        # Plot
+        display("image/png", plot(k_grid, 
+                            permutedims(V_fe), 
+                            title="Value Function (FE)", 
+                            label=permutedims(["z = $(i)" for i in 1:m]), 
+                            xlabel="Capital", 
+                            ylabel="Value"))
+
+    # Compute EEE
+            
+        EEE_final_fe = EEE(C_fe, K_fe, k_grid, z_grid)
+        
+        # Plot
+        display("image/png", plot(k_grid, 
+                            permutedims(EEE_final_fe), 
+                            title="Euler Equation Errors (FE)", 
+                            label=permutedims(["z = $(i)" for i in 1:m]), 
+                            xlabel="Capital", 
+                            ylabel="EEE"))  
+
+    # Print a_star for Latex
+        latexify(round.(a_star, digits = 4))
+
