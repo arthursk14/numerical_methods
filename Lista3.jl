@@ -529,3 +529,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             label=permutedims(["z = $(i)" for i in 1:m]), 
                             xlabel="Capital", 
                             ylabel="EEE"))  
+
+    # Print a_star for Latex
+        latexify(round.(a_star, digits = 4))
