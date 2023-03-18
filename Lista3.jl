@@ -143,30 +143,30 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polynomial of order d, with parameters γ
-    function c_hat(γ, k, d)
-            
-        # Transforming k to the resized grid, domain = [-1,1]
-        k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
+        function c_hat(γ, k, d)
+                
+            # Transforming k to the resized grid, domain = [-1,1]
+            k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
 
-        # Variable to sum for each power
-        sum = 0
-        
-        # Loop to sum for each power
-        for i = 1:(d+1)
-            sum = sum + γ[i]*chebyshev_scalar(i-1, k_resized)
+            # Variable to sum for each power
+            sum = 0
+            
+            # Loop to sum for each power
+            for i = 1:(d+1)
+                sum = sum + γ[i]*chebyshev_scalar(i-1, k_resized)
+            end
+            
+            return sum
+            
         end
-        
-        return sum
-        
-    end
 
     # Recover the whole function for consumption policy, using γ_star
-    C = zeros(m, N)
-    for i = 1:m
-        for j = 1:N
-            C[i,j] = c_hat(γ_star[:,i], k_grid[j], 5)
+        C = zeros(m, N)
+        for i = 1:m
+            for j = 1:N
+                C[i,j] = c_hat(γ_star[:,i], k_grid[j], 5)
+            end
         end
-    end
 
     # Plot
     display("image/png", plot(k_grid, 
@@ -177,12 +177,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          ylabel="Policy (consumption)"))
 
     # Recover the whole function for capital policy, using γ_star
-    K = zeros(m, N)
-    for (i, z) in enumerate(z_grid)
-        for (j, k) in enumerate(k_grid)
-            K[i,j] = (1 - δ)*k + z*k^α - C[i,j]
+        K = zeros(m, N)
+        for (i, z) in enumerate(z_grid)
+            for (j, k) in enumerate(k_grid)
+                K[i,j] = (1 - δ)*k + z*k^α - C[i,j]
+            end
         end
-    end
 
     # Plot
     display("image/png", plot(k_grid, 
@@ -241,28 +241,27 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # Iterations
+        function convergence(V0, K0)
 
-    function convergence(V0, K0)
+            dist = Inf
+            tol = 1e-5
+            iter = 0
+            max_iter = 1e3
 
-        dist = Inf
-        tol = 1e-5
-        iter = 0
-        max_iter = 1e3
+            Vi = zeros(m,N)
 
-        Vi = zeros(m,N)
+            while (dist > tol) && (iter < max_iter) 
+                Vi = Iter_V(V0, K0)
+                dist = norm(Vi-V0, Inf)
+                V0 = Vi
+                iter = iter + 1
+            end
 
-        while (dist > tol) && (iter < max_iter) 
-            Vi = Iter_V(V0, K0)
-            dist = norm(Vi-V0, Inf)
-            V0 = Vi
-            iter = iter + 1
+            return Vi, iter, dist
         end
 
-        return Vi, iter, dist
-    end
-
-    @time V, iter, dist = convergence(zeros(m,N), K)
-    
+        @time V, iter, dist = convergence(zeros(m,N), K)
+        
     # Plot
     display("image/png", plot(k_grid, 
                          permutedims(V), 
@@ -393,7 +392,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             
         end
             
-    # Residual function, we create the system of d+1 equations to solve for γ
+    # We create the system of d+1 equations to solve for γ
         function res_fe(x)
 
             res = zeros(m,ne)
@@ -437,12 +436,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          ylabel="Policy (consumption)"))
 
     # Recover the whole function for capital policy, using γ_star
-    K_fe = zeros(m, N)
-    for (i, z) in enumerate(z_grid)
-        for (j, k) in enumerate(k_grid)
-            K_fe[i,j] = (1 - δ)*k + z*k^α - C_fe[i,j]
+        K_fe = zeros(m, N)
+        for (i, z) in enumerate(z_grid)
+            for (j, k) in enumerate(k_grid)
+                K_fe[i,j] = (1 - δ)*k + z*k^α - C_fe[i,j]
+            end
         end
-    end
 
     # Plot
     display("image/png", plot(k_grid, 
@@ -488,7 +487,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         
         # Plot
         display("image/png", plot(k_grid, 
-                            permutedims(V), 
+                            permutedims(V_fe), 
                             title="Value Function (FE)", 
                             label=permutedims(["z = $(i)" for i in 1:m]), 
                             xlabel="Capital", 
