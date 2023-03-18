@@ -508,7 +508,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     # Print a_star for Latex
         latexify(round.(a_star, digits = 4))
 
-
 # Finite elements - Galerkin
 
     # Residual function
@@ -516,23 +515,19 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
             r = 1
 
-            res = zeros(ne*(ne-1), 1)'            
+            res = zeros(m, ne)            
             k_grid_e = range(k_grid[1], k_grid[length(k_grid)], length=ne)
             
             for i = 1:m
                 
                 for j = 1:ne
-
-                    grid_inf = range(k_grid_e[j], k_grid_e[j+1], length=ne-1)
-                    grid_sup = range(k_grid_e[j-1], k_grid_e[j], length=ne-1)
-                    
-                    aL = grid_inf[1]
-                    bL = grid_inf[ne-1]
-                    
-                    aU = grid_sup[1]
-                    bU = grid_sup[ne-1]
                 
                     if j == 1
+
+                        grid_inf = range(k_grid_e[j], k_grid_e[j+1], length=ne-1)
+                        
+                        aL = grid_inf[1]
+                        bL = grid_inf[ne-1]
 
                         auxL = 0
                         
@@ -550,8 +545,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                             for w = 1:m
                                 C1 = C_hat_fe(a[w,:], K1)
-                                one(w) = (1 - δ + α*z_grid[w]*K1^(α-1))
-                                two(w) = u_c(C1/C0)
+                                one[w] = (1 - δ + α*z_grid[w]*K1^(α-1))
+                                two[w] = u_c(C1/C0)
                             end
                             
                             three = one .* two
@@ -561,11 +556,16 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                         end
                         
-                        res[r] = pi*(bL - aL)*auxL/(2*(ne-1))
+                        res[i,r] = pi*(bL - aL)*auxL/(2*(ne-1))
                         r = r + 1			
                         
                     elseif j == ne
+
+                        grid_sup = range(k_grid_e[j-1], k_grid_e[j], length=ne-1)
                         
+                        aU = grid_sup[1]
+                        bU = grid_sup[ne-1]
+                            
                         auxU = 0
                         
                         for h = 1:ne-1
@@ -593,14 +593,23 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                         end
                         
-                        res[r] = pi*(bU - aU)*auxU/(2*(ne-1))
+                        res[i,r] = pi*(bU - aU)*auxU/(2*(ne-1))
                         r = r + 1                
                         
-                    else                    
+                    else     
+                        
+                        grid_inf = range(k_grid_e[j], k_grid_e[j+1], length=ne-1)
+                        grid_sup = range(k_grid_e[j-1], k_grid_e[j], length=ne-1)
+                        
+                        aL = grid_inf[1]
+                        bL = grid_inf[ne-1]
+                        
+                        aU = grid_sup[1]
+                        bU = grid_sup[ne-1]
                     
                         aux1 = 0
                         
-                        for i = 1:ne-1
+                        for h = 1:ne-1
                             
                             x = cos((2*h-1)/(2*(ne-1))*pi)
                             
@@ -652,19 +661,19 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             
                         end			
                         
-                        res[r] = pi*(bL - aL)*aux1/(2*(ne-1)) + pi*(bU - aU)*aux2/(2*(ne-1))
-                        r = r + 1;
+                        res[i,r] = pi*(bL - aL)*aux1/(2*(ne-1)) + pi*(bU - aU)*aux2/(2*(ne-1))
+                        r = r + 1
                         
                     end                                           
                     
                 end
                 
             end
+
+            return res
             
-        end
-        
+        end        
    
-      
     # Initial guess
         a0 = zeros(m,ne)
         for i = 1:m
@@ -674,7 +683,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # Find zero
-        @time a_star = nlsolve(res_fe,a0).zero
+        @time a_star_galerkin = nlsolve(res_galerkin,a0).zero
 
     # Recover the whole function for consumption policy, using γ_star
         C_fe = zeros(m, N)
