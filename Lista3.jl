@@ -67,92 +67,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return c.^(-μ)
     end
 
-# Chebychev function
-    # function chebyshev(j,x)
-    #     return cos(j*acos(x))
-    # end
-
-# Find roots
-    # function chebyshev_root(d)
-
-    #     roots = zeros(d+1)
-    #     kgrid_roots = zeros(d+1)
-            
-    #     for i in 1:(d+1)
-    #         roots[i] = -cos((2*i-1)/(2*(d+1)) * pi)
-    #         kgrid_roots[i] = ((1 + roots[i])/2)*(k_grid[length(k_grid)]-k_grid[1]) + k_grid[1]
-    #     end
-
-    #     return roots, kgrid_roots
-
-    # end
-
-# Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polinomial of order d
-    # function c_hat(γ, k, d)
-        
-    #     # Transforming k to the resized grid, domain = [-1,1]
-    #     k_resized = 2*(k - k_grid[1])/(k_grid[length(k_grid)] - k_grid[1]) - 1
-
-    #     # Variable to sum for each power
-    #     sum = 0
-        
-    #     # Loop to sum for each power
-    #     for i = 1:(d+1)
-    #         sum = sum + γ[i]*chebyshev(i-1, k_resized)
-    #     end
-        
-    #     return sum
-        
-    # end
-
-# Residual function
-
-    # function R(γ, k, d, z)
-
-    #     C0 = c_hat(γ[z,:], k, d)
-    #     K1 = z_grid[z]*(k^α) + (1-δ)*k - C0
-
-    #     one = zeros(m)
-    #     two = zeros(m)
-        
-    #     for i = 1:m
-        
-    #         C1 = c_hat(γ[i,:], K1, d)
-            
-    #         one[i] = (1 - δ + α*z_grid[i]*K1^(α-1))
-    #         two[i] = u_c(C1)
-        
-    #     end
-        
-    #     three = one .* two
-    #     four = β * dot(P[z,:],three)
-
-    #     return u_c(C0) - four
-        
-    # end
-
-# Create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polinomial
-    # function system(γ, d)
-
-    #     aux = zeros(m, d+1)
-    #     roots, k_roots = chebyshev_root(d)
-        
-    #     for i = 1:m
-    #         for j = 1:(d+1)
-    #             aux[i,j] = R(γ, k_roots[j], d, i)
-    #         end
-    #     end
-
-    #     return permutedims(aux)
-    
-    # end
-
-# Much faster way (and working)
-        
+# Find roots of chebychev polinomial of order d
     function chebyshev_root(d)
         return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
     end
 
+# Find the values of the terms of a chebychev polinomial of order d
     function chebyshev(d; x)
         t = zeros(length(x),d+1)
         for j in 0:d
@@ -161,9 +81,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return t
     end
 
+# Approximate the consumption function using the terms of the polinomial and weights γ
     function C_hat(γ; t)
         return t*γ
     end
+
+# Functions to adapt the grid to [-1,1] and vice-versa
 
     function transform(x)
         return (k_grid[length(k_grid)]-k_grid[1]).*(x .+ 1)./2 .+ k_grid[1]
@@ -173,6 +96,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return 2 .* (x .- k_grid[1]) ./ (k_grid[length(k_grid)] - k_grid[1]) .- 1
     end
 
+# Residual function, we create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polinomial
     function res(γ,d)
 
         res = zeros(d+1,m)
@@ -199,11 +123,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return res
     end
 
+# Iterations to get the initial guess for the order d polinomial as the value the solves the polinomial of order d-1, starting with γ = 1 for d = 1
     global γ0 = ones(2,7)
     global h = 1 
     global γ_star = ones(2,7)
 
-    @time while h <= 5
+    @time while h <= d
         f(γ) = res(γ,h)
         global γ_star = nlsolve(f,γ0).zero
         global γ0 = vcat(γ_star, zeros(1,m))
@@ -212,11 +137,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Consumption policy function using the "optimal" γ
 
-    # Chebychev function for a single value
-    function chebyshev_single_value(j,x)
-        return cos(j*acos(x))
-    end
+    # Chebychev function for a scalar
+        function chebyshev_scalar(j,x)
+            return cos(j*acos(x))
+        end
 
+    # Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polinomial of order d, with parameters γ
     function c_hat(γ, k, d)
             
         # Transforming k to the resized grid, domain = [-1,1]
@@ -227,13 +153,14 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         
         # Loop to sum for each power
         for i = 1:(d+1)
-            sum = sum + γ[i]*chebyshev_single_value(i-1, k_resized)
+            sum = sum + γ[i]*chebyshev_scalar(i-1, k_resized)
         end
         
         return sum
         
     end
 
+    # Recover the whole function for consumption policy, using γ_star
     C = zeros(m, N)
     for i = 1:m
         for j = 1:N
@@ -241,9 +168,105 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
     end
 
+    # Plot
     display("image/png", plot(k_grid, 
                          permutedims(C), 
                          title="Consumption Policy Function", 
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Policy (consumption)"))
+
+    # Recover the whole function for capital policy, using γ_star
+    K = zeros(m, N)
+    for (i, z) in enumerate(z_grid)
+        for (j, k) in enumerate(k_grid)
+            K[i,j] = (1 - δ)*k + z*k^α - C[i,j]
+        end
+    end
+
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(K), 
+                         title="Capital Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Policy (capital)"))
+
+# Recover value function
+
+    # Utility function
+        function u(c,mu)
+            c = float(c)
+            if c < 0
+                u = -Inf
+            else
+                u = (c^(1-mu)-1)/(1-mu)
+            end
+        end
+
+    # Approximate to the defined grid
+        i_grid = zeros(Int,m,N)
+        for (i, z) in enumerate(z_grid)
+            for (j, k) in enumerate(k_grid)
+                dif = abs.(K[i,j] .- k_grid)
+                aux = min(dif...)
+                i_grid[i,j] = trunc(Int, findfirst(a -> a == aux, dif))
+            end
+        end
+
+    # Value function iteration without maximizing (the same we used for the accelerator)
+        function Iter_V(V0, K0)
+
+            # Object to save the next value function
+            V = zeros(m,N)
+            
+            # Choose the current z
+            for (i, z) in enumerate(z_grid)
+
+                # Choose the current k
+                for (j, k) in enumerate(k_grid)
+
+                    # Calculate the consumption for that level of kprime      
+                    c = (1 - δ)*k + z*(k^α) - K0[i,j]
+
+                    # Calculate the whole right hand side of the Bellman equation (without the max operator) 
+                    V[i,j] = u(c, μ) + β * dot(P[i,:], V0[:, i_grid[i,j]])
+
+                end
+
+            end
+
+            return V
+
+        end
+
+    # Iterations
+
+    function convergence(V0, K0)
+
+        dist = Inf
+        tol = 1e-5
+        iter = 0
+        max_iter = 1e3
+
+        Vi = zeros(m,N)
+
+        while (dist > tol) && (iter < max_iter) 
+            Vi = Iter_V(V0, K0)
+            dist = norm(Vi-V0, Inf)
+            V0 = Vi
+            iter = iter + 1
+        end
+
+        return Vi, iter, dist
+    end
+
+    @time V, iter, dist = convergence(zeros(m,N), K)
+    
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(V), 
+                         title="Value Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="Value"))
