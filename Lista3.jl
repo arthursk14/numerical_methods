@@ -1,4 +1,4 @@
-using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots, Dates, NLsolve
+using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, Interpolations, Roots, Dates, NLsolve, Latexify
 
 # Calibration
     α = 1/3
@@ -19,7 +19,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     k_max = 1.25*k_ss
     k_grid = range(k_min, k_max, length=N)
 
-# Order of the polinomial
+# Order of the polynomial
     d = 5
 
 # Discretizing the TFP process using Tauchen method
@@ -67,12 +67,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return c.^(-μ)
     end
 
-# Find roots of chebychev polinomial of order d
+# Find roots of chebychev polynomial of order d
     function chebyshev_root(d)
         return -cos.((2*LinRange(1,d+1,d+1) .- 1)*pi/(2*(d+1)))
     end
 
-# Find the values of the terms of a chebychev polinomial of order d
+# Find the values of the terms of a chebychev polynomial of order d
     function chebyshev(d; x)
         t = zeros(length(x),d+1)
         for j in 0:d
@@ -81,7 +81,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return t
     end
 
-# Approximate the consumption function using the terms of the polinomial and weights γ
+# Approximate the consumption function using the terms of the polynomial and weights γ
     function C_hat(γ; t)
         return t*γ
     end
@@ -96,7 +96,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return 2 .* (x .- k_grid[1]) ./ (k_grid[length(k_grid)] - k_grid[1]) .- 1
     end
 
-# Residual function, we create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polinomial
+# Residual function, we create the system of d+1 equations to solve for γ, each equation corresponds to the residual function, evaluated at a root of the chebyshev polynomial
     function res(γ,d)
 
         res = zeros(d+1,m)
@@ -123,7 +123,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         return res
     end
 
-# Iterations to get the initial guess for the order d polinomial as the value the solves the polinomial of order d-1, starting with γ = 1 for d = 1
+# Iterations to get the initial guess for the order d polynomial as the value the solves the polynomial of order d-1, starting with γ = 1 for d = 1
     global γ0 = ones(2,7)
     global h = 1 
     global γ_star = ones(2,7)
@@ -142,7 +142,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             return cos(j*acos(x))
         end
 
-    # Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polinomial of order d, with parameters γ
+    # Function for approximating the consumption policy function, for a given level of capital, using the Chebychev polynomial of order d, with parameters γ
     function c_hat(γ, k, d)
             
         # Transforming k to the resized grid, domain = [-1,1]
@@ -311,3 +311,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="EEE"))  
+
+# Print γ_star for Latex
+    latexify(round.(γ_star, digits = 4))
