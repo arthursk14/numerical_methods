@@ -270,3 +270,44 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                          label=permutedims(["z = $(i)" for i in 1:m]), 
                          xlabel="Capital", 
                          ylabel="Value"))
+
+# Compute EEE
+
+    # Inverse of the derivative of the utility function
+        function u_c_inv(c)
+            return c.^(-1/μ)
+        end
+
+    # EEE
+        function EEE(C, K, kgrid, zgrid)
+
+            EEE = zeros(m,N)
+
+            for (i,z) in enumerate(zgrid)
+                for (j,k) in enumerate(kgrid[i,:])
+                    # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
+                    one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
+                    # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
+                    two = (1-δ) .+ α*zgrid*(K[i,j]^(α-1))
+                    # Element-wise multiplication
+                    three = one.*two                
+                    # Compute the expectation on z_{t+1}, given z_t and
+                    four = dot(P[i,:],three)
+                    # Euler Equation Error
+                    EEE[i,j] = log10(abs(1 - u_c_inv(β*four)/C[i,j]))
+                end
+            end  
+            
+            return EEE
+
+        end
+        
+    EEE_final = EEE(C, K, k_grid, z_grid)    
+    
+    # Plot
+    display("image/png", plot(k_grid, 
+                         permutedims(EEE_final), 
+                         title="Euler Equation Errors", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Capital", 
+                         ylabel="EEE"))  
