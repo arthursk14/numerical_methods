@@ -279,12 +279,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # EEE
-        function EEE(C, K, kgrid, zgrid)
+        function EEE_chebyshev(C, K, kgrid, zgrid)
 
             EEE = zeros(m,N)
 
             for (i,z) in enumerate(zgrid)
-                for (j,k) in enumerate(kgrid[i,:])
+                for (j,k) in enumerate(kgrid)
                     # m-vector with all possible values for u_c(c_{t+1}), that is, for all possible entries z_{t+1}
                     one = u_c(zgrid*(K[i,j]^α) .+ (1-δ)*K[i,j] .- k)
                     # m-vector with all possible values for (1-δ + αz_{t+1}k_{t+1}^{α-1}), that is, for all possible entries z_{t+1}
@@ -302,7 +302,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
         end
         
-    EEE_final = EEE(C, K, k_grid, z_grid)    
+    EEE_final = EEE_chebyshev(C, K, k_grid, z_grid)    
     
     # Plot
     display("image/png", plot(k_grid, 
