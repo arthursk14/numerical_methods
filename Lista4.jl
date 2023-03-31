@@ -199,3 +199,35 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                                   label=permutedims(["z = $(i)" for i in 1:m]), 
                                   xlabel="Assets", 
                                   ylabel="Policy (consumption)"))
+
+# Invariant distribution and aggregate savings
+
+    LambdaInv = ones(m, N) ./ (m * N)
+    Lambda = zeros(m, N)
+
+    global iter = 0
+    global tol = 1e-5
+    global dist = norm(LambdaInv-Lambda, Inf)
+
+    # Loop
+    while dist > tol
+        for zlin in 1:m
+            for alin in 1:N
+                sum = 0
+                for z in 1:m
+                    for a in 1:N
+                        sum += (a_grid[alin] == A_final[z, a] ? 1 : 0) * LambdaInv[z,a] * P[zlin,z]
+                    end
+                end                
+                Lambda[zlin,alin] = sum
+            end
+        end
+
+        global iter = iter + 1
+        global dist = norm(Lambda-LambdaInv, Inf)
+
+        print("Iteration: $iter; Dist: $dist")
+
+        LambdaInv = copy(Lambda)
+        Lambda = zeros(m, N)
+    end
