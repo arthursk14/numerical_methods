@@ -2,9 +2,9 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Calibration
     β = 0.96
-    ρ = 0.3
-    σ = sqrt(0.01*(1-ρ^2))
-    μ = 3
+    ρ = 0.97
+    σ = 0.01
+    μ = 1.0001
 
 # Grid points
     m = 9                                        # Number of grid points for endowment shocks
@@ -54,13 +54,13 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Solving the individual problem
 
     # Initial interest rate
-        r = 0.04
+        r = 1/β - 1
 
     # Natural debt limit
-        ϕ = -1
+        ϕ = lb/r
 
     # Discretizing the asset space
-        a_grid = LinRange(ϕ,4,N)
+        a_grid = LinRange(ϕ,-ϕ,N)
 
     # Utility function
         function u(c,mu)
@@ -73,8 +73,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # Value function iteration
-        function Iter_V(V0)
-        # function Iter_V(V0, file)
+        function Iter_V(V0, file)
 
             # Object to save the next value function
             V = zeros(m,N)
@@ -136,17 +135,26 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             Vi = zeros(m,N)
             Ai = zeros(m,N)
 
+            open("log.txt", "w") do txt
+
                 global max_iter = 1e3
-                global tol = 1e-5
+                global tol = 1e-2
+
                 global iter = 0
                 global dist = Inf
 
-                while (dist > tol) && (iter < max_iter)                     
-                    Vi, Ai = Iter_V(V0)
-                    global dist = norm(Vi-V0, Inf)                    
+                while (dist > tol) && (iter < max_iter)      
+                    Vi, Ai = Iter_V(V0, txt) 
+                    global dist = norm(Vi-V0, Inf)  
+
                     V0 = copy(Vi)
-                    global iter = iter + 1                     
+                    println(txt, "iter = $iter; dist = $dist")
+                    flush(txt)
+
+                    global iter = iter + 1    
+                                     
                 end
+            end
 
             return Vi, Ai, iter, dist
         end
@@ -205,7 +213,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                 sum = 0
                 for z in 1:m
                     for a in 1:N
-                        sum += (a_grid[alin] == A_final[z, a] ? 1 : 0) * LambdaInv[z,a] * P[zlin,z]
+                        sum += (a_grid[alin] == A_final[a, z] ? 1 : 0) * LambdaInv[z,a] * P[zlin,z]
                     end
                 end
                 Lambda[zlin,alin] = sum
