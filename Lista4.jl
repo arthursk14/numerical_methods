@@ -157,7 +157,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                             xlabel="Assets", 
                             ylabel="Policy (consumption)"))
 
-
 # Find the invariant distribution
         global Lambda = ones(N,m)/(N*m)
         global dist = 1
@@ -207,3 +206,13 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                                   xlabel="Income", 
                                   ylabel="Density",
                                   legend=false))
+
+# Calculate aggregate savings (in this economy, we are talking about liquid bonds demand)
+
+    savings = 0
+
+    for (i,z) in enumerate(z_grid)
+        for (j,a) in enumerate(a_grid)
+            savings = savings + A_final[j,i]*LambdaInv[j,i]
+        end
+    end
