@@ -2,13 +2,13 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Calibration
     β = 0.96
-    ρ = 0.9
-    σ = 0.01
-    μ = 1.0001
+    ρ = 0.3
+    σ = sqrt(0.01*(1-ρ^2))
+    μ = 3
 
 # Grid points
     m = 9                                        # Number of grid points for endowment shocks
-    N = 500                                      # Number of grid points for the asset holding
+    N = 201                                      # Number of grid points for the asset holding
     s = 3                                        # Scaling parameter for the Tauchen discretization
 
 # Discretizing the stochastic process using Tauchen method
@@ -54,18 +54,18 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Solving the individual problem
 
     # Initial interest rate
-        r = 1/β - 1
+        r = 0.04
 
     # Natural debt limit
-        ϕ = lb/r
+        ϕ = -1
 
     # Discretizing the asset space
-        a_grid = LinRange(-ϕ,ϕ,N)
+        a_grid = LinRange(ϕ,4,N)
 
     # Utility function
         function u(c,mu)
             c = float(c)
-            if c < 0
+            if c < 1e-10
                 u = -Inf
             else
                 u = (c^(1-mu)-1)/(1-mu)
@@ -99,10 +99,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                         c = (1+r)*a + z - a_grid[h]
                         # Calculate the whole right hand side of the Bellman equation (without the max operator) 
                         RHS = u(c, μ) + β * (1+r) * dot(P[i,:], V0[:, h])
-                        
-                        # println(file, "iz = $i; ja = $j; h = $h; RHS = $RHS; RHS_old = $RHS_old")
-                        # flush(file)
-
                         # Here we exploit concavity, if the value declines, the previous level is a maximum                        
                         if RHS < RHS_old
                             # With entries (z,a), the value function returns the maximum RHS achievable
@@ -123,7 +119,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                                 A[i,j] = a_grid[h]
                             else
                                 # If not, this was not the maximum, so save for next iteration
-                                RHS_old = RHS
+                                RHS_old = copy(RHS)
                             end
                         end
                     end
@@ -140,24 +136,17 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             Vi = zeros(m,N)
             Ai = zeros(m,N)
 
-            # open("log.txt", "w") do txt
-
                 global max_iter = 1e3
                 global tol = 1e-5
                 global iter = 0
                 global dist = Inf
 
-                while (dist > tol) && (iter < max_iter) 
-                    # Vi, Ai = Iter_V(V0, txt)
+                while (dist > tol) && (iter < max_iter)                     
                     Vi, Ai = Iter_V(V0)
-                    global dist = norm(Vi-V0, Inf)
+                    global dist = norm(Vi-V0, Inf)                    
                     V0 = copy(Vi)
-                    global iter = iter + 1                            
-                    # println(txt, "iter = $iter; dist = $dist")
-                    # flush(txt)
+                    global iter = iter + 1                     
                 end
-            
-            # end
 
             return Vi, Ai, iter, dist
         end
@@ -232,3 +221,9 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         global Lambda = zeros(m, N)
     end
 
+        display("image/png", plot(a_grid, 
+                             permutedims(LambdaInv), 
+                             title="Invariant Distribution", 
+                             label=permutedims(["z = $(i)" for i in 1:m]), 
+                             xlabel="Assets", 
+                             ylabel="Density"))
