@@ -202,8 +202,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Invariant distribution and aggregate savings
 
-    LambdaInv = ones(m, N) ./ (m * N)
-    Lambda = zeros(m, N)
+    global LambdaInv = ones(m, N) ./ (m * N)
+    global Lambda = zeros(m, N)
 
     global iter = 0
     global tol = 1e-5
@@ -218,7 +218,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                     for a in 1:N
                         sum += (a_grid[alin] == A_final[z, a] ? 1 : 0) * LambdaInv[z,a] * P[zlin,z]
                     end
-                end                
+                end
                 Lambda[zlin,alin] = sum
             end
         end
@@ -228,6 +228,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
         print("Iteration: $iter; Dist: $dist")
 
-        LambdaInv = copy(Lambda)
-        Lambda = zeros(m, N)
+        global LambdaInv = copy(Lambda)
+        global Lambda = zeros(m, N)
     end
+
