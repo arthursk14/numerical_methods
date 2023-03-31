@@ -54,7 +54,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 # Solving the individual problem
 
     # Initial interest rate
-        r = 1/β - 1
+        r = 1/β-1
 
     # Natural debt limit
         ϕ = lb/r
