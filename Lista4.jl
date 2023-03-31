@@ -73,7 +73,6 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         end
 
     # Value function iteration
-
         grid = zeros(N*m,2)
         for (i, z) in enumerate(z_grid)
             for (j, a) in enumerate(a_grid)
@@ -106,8 +105,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         global dist = Inf
 
         max_iter = 1e3
-        tol = 1e-5
-        
+        tol = 1e-5        
 
         for i = 1:max_iter
 
@@ -135,33 +133,32 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         C_final = reshape(c,N,m)
 
     # Plots
+    display("image/png", plot(a_grid, 
+                         V_final, 
+                         title="Value Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Assets", 
+                         ylabel="Value"))
 
-        display("image/png", plot(a_grid, 
-                            V_final, 
-                            title="Value Function", 
-                            label=permutedims(["z = $(i)" for i in 1:m]), 
-                            xlabel="Assets", 
-                            ylabel="Value"))
+    display("image/png", plot(a_grid, 
+                         A_final, 
+                         title="Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Assets", 
+                         ylabel="Policy (assets)")) 
 
-        display("image/png", plot(a_grid, 
-                            A_final, 
-                            title="Policy Function", 
-                            label=permutedims(["z = $(i)" for i in 1:m]), 
-                            xlabel="Assets", 
-                            ylabel="Policy (assets)")) 
-
-        display("image/png", plot(a_grid, 
-                            C_final, 
-                            title="Policy Function", 
-                            label=permutedims(["z = $(i)" for i in 1:m]), 
-                            xlabel="Assets", 
-                            ylabel="Policy (consumption)"))
+    display("image/png", plot(a_grid, 
+                         C_final, 
+                         title="Policy Function", 
+                         label=permutedims(["z = $(i)" for i in 1:m]), 
+                         xlabel="Assets", 
+                         ylabel="Policy (consumption)"))
 
 # Find the invariant distribution
-        global Lambda = ones(N,m)/(N*m)
-        global dist = 1
+    global Lambda = ones(N,m)/(N*m)
+    global dist = 1
 
-        # Iterate to find the invariant distribution
+    # Iterate to find the invariant distribution
         for iter in 1:max_iter
             global LambdaInv = zeros(N, m)    
             
@@ -188,27 +185,26 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             end
         end
 
-        # Compute the marginal distributions
+    # Compute the marginal distributions
         marginal_assets = sum(LambdaInv, dims=2)[:, 1]
         marginal_shocks = sum(LambdaInv, dims=1)[1, :]
 
-        # Plots
-        display("image/png", plot(a_grid, 
-                                  marginal_assets, 
-                                  title="Invariate distribution of assets", 
-                                  xlabel="Assets", 
-                                  ylabel="Density",
-                                  legend=false))
+    # Plots
+    display("image/png", plot(a_grid, 
+                              marginal_assets, 
+                              title="Invariate distribution of assets", 
+                              xlabel="Assets", 
+                              ylabel="Density",
+                              legend=false))
 
-        display("image/png", plot(z_grid, 
-                                  marginal_shocks, 
-                                  title="Invariate distribution of income (shocks)", 
-                                  xlabel="Income", 
-                                  ylabel="Density",
-                                  legend=false))
+    display("image/png", plot(z_grid, 
+                              marginal_shocks, 
+                              title="Invariate distribution of income (shocks)", 
+                              xlabel="Income", 
+                              ylabel="Density",
+                              legend=false))
 
 # Calculate aggregate savings (in this economy, we are talking about liquid bonds demand)
-
     savings = 0
 
     for (i,z) in enumerate(z_grid)
