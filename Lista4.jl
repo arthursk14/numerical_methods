@@ -2,9 +2,9 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 # Calibration
     β = 0.96
-    ρ = 0.30
+    ρ = 0.90
     σ = 0.01
-    μ = 3
+    μ = 1.0001
 
 # Grid points
     m = 9                                        # Number of grid points for endowment shocks
@@ -159,11 +159,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
 
 
 # Find the invariant distribution
-        Lambda = ones(N,m)/(N*m)
+        global Lambda = ones(N,m)/(N*m)
+        global dist = 1
 
         # Iterate to find the invariant distribution
         for iter in 1:max_iter
-            LambdaInv = zeros(N, m)    
+            global LambdaInv = zeros(N, m)    
             
             for (i,a) in enumerate(a_grid)
                 for (j,z) in enumerate(z_grid)
@@ -179,11 +180,12 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
             end
             
             # Check for convergence
-            dist = norm(Lambda - LambdaInv, Inf)
+            global dist = norm(Lambda - LambdaInv, Inf)
+            println("iter = $iter; dist = $dist")
             if dist < tol
                 break
             else
-                Lambda .= LambdaInv
+                global Lambda = copy(LambdaInv)
             end
         end
 
