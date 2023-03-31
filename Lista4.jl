@@ -205,10 +205,10 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
                               legend=false))
 
 # Calculate aggregate savings (in this economy, we are talking about liquid bonds demand)
-    savings = 0
+    global savings = 0
 
     for (i,z) in enumerate(z_grid)
         for (j,a) in enumerate(a_grid)
-            savings = savings + A_final[j,i]*LambdaInv[j,i]
+            global savings += A_final[j,i]*LambdaInv[j,i]
         end
     end
