@@ -48,6 +48,8 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         display(P)
         display(Z)
 
+        latexify(round.(P, digits = 6))
+
     # Transform to the scale of the endowment
         z_grid = exp.(Z)
 
@@ -107,7 +109,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
         max_iter = 1e3
         tol = 1e-5        
 
-        for i = 1:max_iter
+        @time for i = 1:max_iter
 
             RHS = u0 + β * kron(P,ones(N,1)) * reshape(v,N,m)'
             aux = mapslices(findmax, RHS, dims=2)
@@ -159,7 +161,7 @@ using Distributions, LinearAlgebra, Plots, Random, Statistics, BenchmarkTools, I
     global dist = 1
 
     # Iterate to find the invariant distribution
-        for iter in 1:max_iter
+        @time for iter in 1:max_iter
             global LambdaInv = zeros(N, m)    
             
             for (i,a) in enumerate(a_grid)
